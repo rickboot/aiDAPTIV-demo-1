@@ -255,7 +255,7 @@ class SimulationOrchestrator:
             
             # 5. SEND THOUGHT EVENTS (LLM-based or canned)
             async for thought_event in self._generate_llm_thought(progress_percent):
-                yield thought_event.model_dump()
+                yield thought_event
             
             # 6. SEND METRIC UPDATES (periodically)
             if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
