@@ -269,7 +269,7 @@ export const WarRoomDisplay = () => {
         feed, worldModel, systemState, metrics, performance, currentActivity,
         isAnalysisRunning, startAnalysis, stopAnalysis,
         isSuccess, isComplete, showResults, closeResults,
-        activeScenario, tier
+        activeScenario, tier, impactSummary
     } = useScenario();
 
     const activeFileRef = React.useRef<HTMLDivElement>(null);
@@ -462,7 +462,7 @@ export const WarRoomDisplay = () => {
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest">Data Sources</h3>
                                     <div className="flex gap-4 text-xs font-mono">
-                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / 96</span>
+                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / {impactSummary?.total_documents || (tier === 'large' ? 268 : 18)}</span>
                                     </div>
                                 </div>
                                 {/* Filter Toolbar */}
