@@ -247,7 +247,68 @@ export const HardwareMonitor = () => {
                         </div>
                     </div>
 
-                    {/* 5. aiDAPTIV+ IMPACT (Business Metrics) */}
+                    {/* 5. CONTEXT & KV CACHE */}
+                    <div className="bg-dashboard-bg/30 rounded-lg p-3 border border-dashboard-border/30">
+                        <div className="flex items-center gap-2 mb-2">
+                            <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span className="text-[10px] font-bold text-text-primary uppercase tracking-widest">Context & Cache</span>
+                        </div>
+                        <div className="space-y-2">
+                            {/* Context Size */}
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-text-muted uppercase tracking-wide">Context</span>
+                                <span className="text-xs font-mono font-semibold text-purple-400">
+                                    {((systemState as any).context_tokens || 0).toLocaleString()} tokens
+                                </span>
+                            </div>
+
+                            {/* KV Cache */}
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-text-muted uppercase tracking-wide">KV Cache</span>
+                                <span className="text-xs font-mono font-semibold text-purple-400">
+                                    {((systemState as any).kv_cache_gb || 0).toFixed(2)} GB
+                                </span>
+                            </div>
+
+                            {/* Model Weights */}
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] text-text-muted uppercase tracking-wide">Model</span>
+                                <span className="text-xs font-mono font-semibold text-blue-400">
+                                    {((systemState as any).model_weights_gb || 0).toFixed(1)} GB
+                                </span>
+                            </div>
+
+                            {/* Memory Breakdown Bar */}
+                            <div className="pt-1">
+                                <div className="h-1.5 bg-dashboard-bg rounded-full overflow-hidden flex">
+                                    <div
+                                        className="bg-blue-500"
+                                        style={{ width: `${(((systemState as any).model_weights_gb || 0) / totalMem) * 100}%` }}
+                                        title="Model Weights"
+                                    />
+                                    <div
+                                        className="bg-purple-500"
+                                        style={{ width: `${(((systemState as any).kv_cache_gb || 0) / totalMem) * 100}%` }}
+                                        title="KV Cache"
+                                    />
+                                </div>
+                                <div className="flex gap-3 mt-1">
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-blue-500 rounded-sm"></div>
+                                        <span className="text-[8px] text-text-muted">Model</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-sm"></div>
+                                        <span className="text-[8px] text-text-muted">Cache</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 6. aiDAPTIV+ IMPACT (Business Metrics) */}
                     <div className="pt-4 border-t border-dashboard-border/30 mt-4">
                         <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider mb-3">aiDAPTIV+ Impact</div>
 
