@@ -2,6 +2,8 @@
 REST API endpoints for scenario management.
 """
 
+import psutil
+import platform
 from fastapi import APIRouter
 from models.schemas import (
     HealthResponse, SystemInfo, ScenarioListResponse, ScenarioListItem,
@@ -20,9 +22,6 @@ async def health_check():
 @router.get("/system/info", response_model=SystemInfo)
 async def system_info():
     """Get dynamic system information."""
-    import psutil
-    import platform
-    
     # Get total memory in GB
     vm = psutil.virtual_memory()
     total_gb = vm.total / (1024**3)

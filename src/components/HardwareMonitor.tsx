@@ -94,17 +94,8 @@ export const HardwareMonitor = () => {
 
     const isSuccess = impactSummary ? documents_processed === total_documents : false;
 
-
     // If we shouldn't render at all yet (for initial load)
     if (!showHardwareMonitor && !visible) return null;
-
-    // Logic repeated for variables (since we overwrote them in the big chunk above, need to make sure they aren't lost or duplicated.
-    // Actually, I removed them in the chunk above. I need to restore them or ensure the previous chunk didn't delete them if they act as dependencies.
-    // Wait, I removed vramPercent definitions in the previous step. That was a mistake. I need to put them back in the component body.
-
-    // RE-ADDING VARIABLES THAT WERE ACCIDENTALLY REPLACED IN STEP 2 IF I WASN'T CAREFUL.
-    // Checking the replacement chunk... I targeted from line 7 to 37.
-    // The variables vramPercent etc were inside that range. I MUST re-declare them.
 
     // Use dynamic total memory from backend (psutil), defaulting to 16 if not set
     const totalMem = systemState.totalMemory || 16;

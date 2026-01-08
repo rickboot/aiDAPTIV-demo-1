@@ -174,7 +174,7 @@ class SimulationOrchestrator:
         chunk = duration / steps
         for _ in range(steps):
             await asyncio.sleep(chunk)
-            memory_data, _ = self.memory_monitor.calculate_memory(self.current_progress)
+            memory_data, _ = self.memory_monitor.calculate_memory()
             yield MemoryEvent(data=memory_data).model_dump()
         
     async def run_simulation(self) -> AsyncGenerator[dict, None]:
@@ -228,7 +228,7 @@ class SimulationOrchestrator:
             yield doc_event.model_dump()
             
             # 2. SEND MEMORY EVENT
-            memory_data, should_crash = self.memory_monitor.calculate_memory(progress_percent)
+            memory_data, should_crash = self.memory_monitor.calculate_memory()
             memory_event = MemoryEvent(data=memory_data)
             yield memory_event.model_dump()
             
