@@ -25,6 +25,10 @@ class MemoryMonitor:
         self.config = config
         self.aidaptiv_enabled = aidaptiv_enabled
         
+        # Capture baseline swap usage at start
+        swap = psutil.swap_memory()
+        self.baseline_swap_gb = swap.used / (1024**3)
+        
     def calculate_memory(self) -> tuple[MemoryData, bool]:
         """
         Calculate memory usage using real system telemetry.
@@ -46,10 +50,12 @@ class MemoryMonitor:
         virtual_active = virtual_gb > 0.1  # Active if > 100MB swap
         virtual_percent = swap.percent
         
-        # Crash Logic: If aiDAPTIV+ disabled and system is swapping heavily
+        # Crash Logic: Only crash if swap INCREASES significantly from baseline
+        # This prevents false positives from existing system swap usage
+        swap_delta = virtual_gb - self.baseline_swap_gb
         should_crash = False
-        if not self.aidaptiv_enabled and virtual_active and virtual_gb > 1.0:
-            # System is using >1GB swap without aiDAPTIV+ - would crash
+        if not self.aidaptiv_enabled and swap_delta > 2.0:
+            # Swap increased by >2GB during simulation - would crash
             should_crash = True
         
         memory_data = MemoryData(
