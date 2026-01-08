@@ -5,7 +5,7 @@ WebSocket endpoint for real-time simulation streaming.
 import json
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from services.simulation import SimulationOrchestrator
+from services.orchestrator import SimulationOrchestrator
 
 logger = logging.getLogger(__name__)
 

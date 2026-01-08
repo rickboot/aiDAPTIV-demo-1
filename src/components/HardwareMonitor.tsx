@@ -106,11 +106,16 @@ export const HardwareMonitor = () => {
     // Checking the replacement chunk... I targeted from line 7 to 37.
     // The variables vramPercent etc were inside that range. I MUST re-declare them.
 
-    const vramPercent = Math.min((systemState.vramUsage / 24) * 100, 100);
-    const isCritical = vramPercent > 98;
-    const isOOM = systemState.vramUsage >= 24.1;
-    const isSsdReady = systemState.isAidaptivEnabled && systemState.vramUsage < 21.6;
-    const isSsdActive = systemState.isAidaptivEnabled && systemState.vramUsage >= 21.6;
+    // Use dynamic total memory from backend (psutil), defaulting to 16 if not set
+    const totalMem = systemState.totalMemory || 16;
+
+    const vramPercent = Math.min((systemState.vramUsage / totalMem) * 100, 100);
+    const isCritical = vramPercent > 95;
+    const isOOM = systemState.vramUsage >= totalMem;
+    // SSD logic triggers when VRAM is "full" or close to it
+    const ssdThreshold = totalMem * 0.9;
+    const isSsdReady = systemState.isAidaptivEnabled && systemState.vramUsage < ssdThreshold;
+    const isSsdActive = systemState.isAidaptivEnabled && systemState.vramUsage >= ssdThreshold;
 
     return (
         <div
@@ -151,12 +156,13 @@ export const HardwareMonitor = () => {
                 </div>
 
                 <div className="p-4 pt-5">
-                    {/* 1. GPU MEMORY */}
-                    <div className="mb-4">
+                    {/* 1. PRIMARY MEMORY (Generic Label) */}
+                    <div className="mb-6">
                         <div className="flex justify-between items-end mb-1">
-                            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">GPU Memory</span>
+                            {/* Agnostic Label: "Memory Usage" or "System Memory" covers generic PC/Mac */}
+                            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">System Memory</span>
                             <span className={`text-xs font-mono ${isCritical ? 'text-accent-danger font-bold' : 'text-text-primary'}`}>
-                                {Math.min(systemState.vramUsage, 24).toFixed(1)} / 24.0 GB
+                                {Math.min(systemState.vramUsage, totalMem).toFixed(1)} / {totalMem.toFixed(1)} GB
                             </span>
                         </div>
                         <div className="h-2 w-full bg-dashboard-bg rounded-md overflow-hidden border border-white/5">
@@ -167,21 +173,7 @@ export const HardwareMonitor = () => {
                         </div>
                     </div>
 
-                    {/* 2. SYSTEM RAM */}
-                    <div className="mb-4">
-                        <div className="flex justify-between items-end mb-1">
-                            <span className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">System RAM</span>
-                            <span className="text-xs font-mono text-text-primary">
-                                {(systemState.ramUsage || 16).toFixed(1)} / 128.0 GB
-                            </span>
-                        </div>
-                        <div className="h-2 w-full bg-dashboard-bg rounded-md overflow-hidden border border-white/5">
-                            <div
-                                className="h-full rounded-sm bg-accent-warning transition-all duration-300"
-                                style={{ width: `${Math.min(((systemState.ramUsage || 16) / 128) * 100, 100)}%` }}
-                            />
-                        </div>
-                    </div>
+                    {/* REMOVED REDUNDANT SYSTEM RAM BAR */}
 
                     {/* 3. SSD CACHE (Dynamic Logic) */}
                     <div className="mb-6">
@@ -323,13 +315,13 @@ export const HardwareMonitor = () => {
                                 <div className="bg-black/40 p-2 rounded border border-white/10">
                                     <div className="flex justify-between text-xs">
                                         <span className="text-text-secondary">VRAM</span>
-                                        <span className="text-red-400 font-bold">24.1 GB (CRITICAL)</span>
+                                        <span className="text-red-400 font-bold">16.1 GB (CRITICAL)</span>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="text-text-muted text-[10px] text-center mb-4">
-                                Workload requires ~{crashDetails?.required_vram_gb || 48}GB VRAM.<br />
+                                Workload requires ~{crashDetails?.required_vram_gb || 32}GB VRAM.<br />
                                 Hardware limit exceeded.
                             </div>
 

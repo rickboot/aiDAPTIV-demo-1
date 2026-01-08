@@ -24,27 +24,54 @@ ANALYSIS_PHASES = {
     "phase_1_review": {
         "name": "Document Review",
         "prompt": "First, review the list of competitors, research papers, and social signals provided. Briefly summarize what data sources you have available for analysis.",
-        "trigger_percent": 5
+        "trigger_percent": 5,
+        "step_type": "plan",
+        "tools": ["document_loader"],
+        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2"],
+        "author": "@Orchestrator",
+        "system_prompt": "You are the Orchestrator. Your role is to survey available data and plan the analysis resources. maintain a high-level operational tone.",
+        "model": "llama3.1:8b"
     },
     "phase_2_patterns": {
         "name": "Pattern Detection",
         "prompt": "Now analyze the competitor descriptions and UI changes. What patterns do you notice in their product interfaces and architectures? Be specific about which competitors show similar changes.",
-        "trigger_percent": 25
+        "trigger_percent": 25,
+        "step_type": "thought",
+        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2", "Comp_Archive_X"],
+        "author": "@AI_Analyst",
+        "system_prompt": "You are an Expert UI Analyst. Focus strictly on visual patterns, interface elements, and user experience changes. Be detailed and observational.",
+        "model": "llava"
     },
     "phase_3_technical": {
         "name": "Technical Cross-Reference",
         "prompt": "Cross-reference the UI patterns you found with the technical research papers. Do any papers discuss agentic architectures, multi-agent systems, or autonomous workflows that align with what you're seeing in competitor products?",
-        "trigger_percent": 50
+        "trigger_percent": 50,
+        "step_type": "action",
+        "tools": ["rag_retriever"],
+        "related_doc_ids": ["arXiv_2401.12847"],
+        "author": "@Tech_Specialist",
+        "system_prompt": "You are a Chief Software Architect. Focus on backend infrastructure, agentic frameworks, and technical feasibility. Ignore marketing fluff.",
+        "model": "qwen2.5:7b"
     },
     "phase_4_social": {
         "name": "Social Signal Validation",
         "prompt": "Check the social media signals from CTOs and product leaders. Do their posts, blog articles, or conference talks corroborate your technical findings? What are they saying about AI agents and architecture shifts?",
-        "trigger_percent": 70
+        "trigger_percent": 70,
+        "step_type": "observation",
+        "related_doc_ids": ["Social_Signal_5", "Social_Signal_8"],
+        "author": "@Market_Researcher",
+        "system_prompt": "You are a Market Researcher. Analyze social sentiment, industry buzz, and thought leader opinions. Look for validation of technical trends.",
+        "model": "llama3.1:8b"
     },
     "phase_5_synthesis": {
         "name": "Synthesis & Recommendations",
         "prompt": "Synthesize your findings. How many competitors show strong evidence of architectural shifts toward agentic systems? What's the strength of evidence (UI changes + papers + social signals)? What should our product team do in response?",
-        "trigger_percent": 90
+        "trigger_percent": 90,
+        "step_type": "thought",
+        "tools": ["report_generator"],
+        "author": "@Lead_Strategist",
+        "system_prompt": "You are the Lead Strategist. Synthesize findings from the analyst, architect, and researcher into a decisive executive recommendation. Be business-focused.",
+        "model": "llama3.1:8b"
     }
 }
 
@@ -245,8 +272,8 @@ class OllamaService:
             return
         
         # Build simplified prompt - don't send full context to reduce processing time
-        system_prompt = """You are an AI analyst for competitive intelligence. 
-Provide concise, specific insights based on the analysis phase."""
+        system_prompt = phase.get("system_prompt", """You are an AI analyst for competitive intelligence. 
+Provide concise, specific insights based on the analysis phase.""")
         
         user_prompt = f"""{phase['prompt']}
 
@@ -260,14 +287,27 @@ Provide a brief 1-2 sentence insight for this phase of analysis."""
             
             # Start timer immediately before API call to measure actual LLM performance
             start_time = time.time()
-            stream = ollama.chat(
-                model=self.model,
-                messages=[
+            
+            # Prepare args
+            chat_args = {
+                'model': phase.get("model", self.model),
+                'messages': [
                     {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': user_prompt}
                 ],
-                stream=True
-            )
+                'stream': True
+            }
+            
+            # For LLaVA (Vision), inject the mock UI screenshot if it exists
+            if chat_args['model'] == 'llava':
+                # Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
+                img_path = Path(__file__).parent.parent.parent / "documents" / "pmm" / "lite" / "competitors" / "competitor_ui.png"
+                if img_path.exists():
+                    logger.info(f"Injecting image for LLaVA: {img_path}")
+                    # LLaVA expects image in the user message
+                    chat_args['messages'][1]['images'] = [str(img_path)]
+            
+            stream = ollama.chat(**chat_args)
             
             buffer = ""
             for chunk in stream:

@@ -50,6 +50,11 @@ class ThoughtData(BaseModel):
     text: str
     status: Literal["PROCESSING", "ACTIVE", "ANALYZING", "COMPLETE", "WARNING"]
     timestamp: str
+    step_type: Optional[Literal["plan", "action", "observation", "thought", "tool_use"]] = "thought"
+    tools: Optional[list[str]] = None
+    parent_id: Optional[str] = None
+    related_doc_ids: Optional[list[str]] = None
+    author: Optional[str] = None
 
 
 class ThoughtEvent(BaseModel):

@@ -71,6 +71,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
     const [systemState, setSystemState] = useState<SystemState>({
         vramUsage: 0,
+        totalMemory: 16,
         ramUsage: 16.0,
         ssdUsage: 0,
         isAidaptivEnabled: false,
@@ -134,6 +135,27 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             setSystemState(prev => ({ ...prev, isAidaptivEnabled: !prev.isAidaptivEnabled }));
         }
     };
+
+    // Load system info on mount
+    useEffect(() => {
+        const fetchSystemInfo = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/system/info');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Detected System:', data);
+                    setSystemState(prev => ({
+                        ...prev,
+                        totalMemory: data.memory_gb,
+                        modelName: data.model
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch system info:', error);
+            }
+        };
+        fetchSystemInfo();
+    }, []);
 
     const startAnalysis = async () => {
         if (isAnalysisRunning) return;
@@ -204,10 +226,14 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 const newThought: FeedItem = {
                     id: `ws-${Date.now()}`,
                     source: 'AI_Agent',
-                    author: '@AI_Agent',
+                    author: message.data.author || '@AI_Agent',
                     content: message.data.text,
                     timestamp: 'Just now',
-                    badge: message.data.status
+                    badge: message.data.status,
+                    stepType: message.data.step_type,
+                    tools: message.data.tools,
+                    parentId: message.data.parent_id,
+                    relatedDocIds: message.data.related_doc_ids
                 };
                 setFeed(prev => [newThought, ...prev]);
                 break;
@@ -217,7 +243,8 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 setSystemState(prev => ({
                     ...prev,
                     vramUsage: message.data.unified_gb,
-                    ramUsage: 16 + (message.data.unified_gb * 4.5), // Simulate RAM growth
+                    totalMemory: message.data.unified_total_gb || 16,
+                    ramUsage: message.data.unified_gb, // Deprecated field, keep in sync or ignore
                     ssdUsage: message.data.virtual_gb
                 }));
                 break;

@@ -290,6 +290,8 @@ export const WarRoomDisplay = () => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
         }
+        // DEBUG LOG
+        console.log('Current Feed:', feed);
     }, [feed]);
 
     return (
@@ -395,25 +397,58 @@ export const WarRoomDisplay = () => {
                                     <div
                                         key={item.id}
                                         onClick={() => setFocusedThoughtId(focusedThoughtId === item.id ? null : item.id)}
-                                        className={`p-4 rounded-lg border transition-all cursor-pointer group shadow-sm animate-fade-in-up ${focusedThoughtId === item.id
-                                            ? 'bg-blue-900/40 border-blue-500/50 scale-[1.01] shadow-[0_0_15px_rgba(59,130,246,0.2)]'
-                                            : 'border-dashboard-border/50 bg-dashboard-card/80 hover:bg-white/[0.03] hover:border-dashboard-border'
-                                            }`}
+                                        className={`rounded-lg transition-all cursor-pointer group animate-fade-in-up ${focusedThoughtId === item.id
+                                            ? 'bg-blue-900/40 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                                            : 'border border-transparent hover:bg-white/[0.03]'
+                                            } ${item.parentId ? 'ml-6 border-l-2 border-l-dashboard-border/50 pl-4 py-2' : 'p-3 my-1'}`}
                                     >
-                                        {/* ... Item content ... */}
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-blue-400">{item.author}</span>
-                                                <span className="text-[10px] text-text-muted">{item.timestamp}</span>
+                                        {/* TOOL USE ITEM */}
+                                        {item.stepType === 'tool_use' ? (
+                                            <div className="flex items-start gap-3 text-xs bg-black/20 p-2 rounded border border-white/5 font-mono text-cyan-300/90">
+                                                <span className="mt-0.5">🔧</span>
+                                                <div className="flex flex-col gap-1 w-full">
+                                                    <div className="flex justify-between w-full">
+                                                        <span className="font-bold">TOOL: {item.tools?.[0] || 'Unknown'}</span>
+                                                        <span className="text-[9px] opacity-50">{item.timestamp}</span>
+                                                    </div>
+                                                    <span className="text-white/60">{item.content}</span>
+                                                </div>
                                             </div>
-                                            <StatusBadge type={item.badge} />
-                                        </div>
-                                        <div className={`text-xs whitespace-pre-wrap font-mono leading-relaxed pl-2 border-l-2 transition-colors ${focusedThoughtId === item.id
-                                            ? 'text-blue-100 border-blue-400'
-                                            : 'text-text-primary opacity-90 border-dashboard-border group-hover:border-accent-primary'
-                                            }`}>
-                                            {item.content}
-                                        </div>
+                                        ) : (
+                                            /* STANDARD THOUGHT / PLAN / ACTION */
+                                            <>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[10px] font-bold uppercase tracking-wider ${item.stepType === 'plan' ? 'text-purple-400' :
+                                                            item.stepType === 'action' ? 'text-amber-400' :
+                                                                item.stepType === 'observation' ? 'text-emerald-400' :
+                                                                    'text-blue-400'
+                                                            }`}>
+                                                            {item.stepType?.toUpperCase() || 'THOUGHT'}
+                                                        </span>
+                                                        <span className="text-[10px] text-cyan-200/60 font-mono tracking-tight">{item.author}</span>
+                                                        <span className="text-[10px] text-text-muted opacity-50">{item.timestamp}</span>
+                                                    </div>
+                                                    <StatusBadge type={item.badge} />
+                                                </div>
+                                                <div className={`text-xs whitespace-pre-wrap font-mono leading-relaxed transition-colors ${focusedThoughtId === item.id
+                                                    ? 'text-white'
+                                                    : 'text-text-primary opacity-90'
+                                                    }`}>
+                                                    {item.content}
+                                                </div>
+                                                {/* Related Docs Pill */}
+                                                {item.relatedDocIds && item.relatedDocIds.length > 0 && (
+                                                    <div className="mt-2 flex gap-1 flex-wrap">
+                                                        {item.relatedDocIds.map(docId => (
+                                                            <span key={docId} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] text-text-muted font-mono hover:text-white hover:border-white/30 transition-colors">
+                                                                📄 {docId}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 ))}
                                 <div ref={messagesEndRef} />

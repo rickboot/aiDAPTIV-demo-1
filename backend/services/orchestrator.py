@@ -13,7 +13,7 @@ from models.schemas import (
     ScenarioConfig, ThoughtEvent, ThoughtData, MemoryEvent, DocumentEvent,
     DocumentData, MetricEvent, MetricData, CompleteEvent, CompleteData,
     CrashEvent, CrashData, FindingsData, MemoryStatsData, PerformanceEvent, PerformanceData,
-    ImpactSummaryEvent, ImpactSummaryData
+    ImpactSummaryEvent, ImpactSummaryData, StatusEvent
 )
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
@@ -31,7 +31,7 @@ SCENARIOS = {
     "pmm_lite": ScenarioConfig(
         scenario="pmm",
         tier="lite",
-        duration_seconds=15,
+        duration_seconds=60, # Slower for better observability
         total_documents=18,  # 3 competitors + 10 papers + 5 social
         memory_target_gb=10.0,
         crash_threshold_percent=None  # Won't crash - fits in 16GB
@@ -39,7 +39,7 @@ SCENARIOS = {
     "pmm_large": ScenarioConfig(
         scenario="pmm",
         tier="large",
-        duration_seconds=30,
+        duration_seconds=120, # 2 minutes for full run
         total_documents=268,  # 12 competitors + 234 papers + 22 social
         memory_target_gb=19.0,
         crash_threshold_percent=76.0  # Crashes at 76% without aiDAPTIV+
@@ -53,34 +53,42 @@ SCENARIOS = {
 
 THOUGHT_PHASES = {
     "loading": {
-        "text": "Loading visual corpus: {visual_count} competitor UI screenshots into context",
+        "text": "Plan: Load visual corpus containing {visual_count} competitor UI screenshots",
         "status": "PROCESSING",
-        "trigger_percent": 5
+        "trigger_percent": 5,
+        "step_type": "plan"
     },
     "analyzing": {
         "text": "Analyzing Competitor X homepage redesign captured Jan 3, 2026",
         "status": "ANALYZING",
-        "trigger_percent": 20
+        "trigger_percent": 20,
+        "step_type": "thought",
+        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2"]
     },
     "cross_ref": {
-        "text": "Cross-referencing visual changes with arXiv paper 2401.12847 (Agentic Architectures)",
+        "text": "Cross-referencing visual changes with arXiv paper 2401.12847",
         "status": "ACTIVE",
-        "trigger_percent": 40
+        "trigger_percent": 40,
+        "step_type": "action",
+        "tools": ["arxiv_search", "rag_pipeline"]
     },
     "pattern": {
-        "text": "Pattern detected: {shifts} of {total_competitors} competitors shifting to agentic architecture",
+        "text": "Observation: Detected {shifts} of {total_competitors} competitors shifting to agentic architecture",
         "status": "ACTIVE",
-        "trigger_percent": 60
+        "trigger_percent": 60,
+        "step_type": "observation"
     },
     "memory_pressure": {
         "text": "⚠️ Memory pressure at 95% - triggering aiDAPTIV+ offload to SSD cache",
         "status": "WARNING",
-        "trigger_percent": 85
+        "trigger_percent": 85,
+        "step_type": "tool_use",
+        "tools": ["memory_manager"]
     },
     "complete": {
         "text": "✅ Analysis complete: Competitive positioning gap identified",
         "status": "COMPLETE",
-        "trigger_percent": 105  # Never triggers during loop - only shows in completion event
+        "step_type": "thought"
     }
 }
 
@@ -88,6 +96,8 @@ THOUGHT_PHASES = {
 # ═══════════════════════════════════════════════════════════════
 # SIMULATION ORCHESTRATOR
 # ═══════════════════════════════════════════════════════════════
+
+
 
 class SimulationOrchestrator:
     """
@@ -129,6 +139,10 @@ class SimulationOrchestrator:
         # Performance monitoring
         self.performance_monitor = PerformanceMonitor()
         
+        # Track active model to visualize swapping
+        self.current_model = "llama3.1:8b"
+        self.current_progress = 0.0
+        
         if self.use_ollama:
             self.ollama_service = OllamaService(config.OLLAMA_HOST, config.OLLAMA_MODEL)
             available, error_msg = self.ollama_service.check_availability()
@@ -144,9 +158,24 @@ class SimulationOrchestrator:
                     self.ollama_context = self.ollama_service.build_context(documents)
                     logger.info(f"Loaded context: {len(self.ollama_context)} chars, ~{self.ollama_service.count_tokens(self.ollama_context)} tokens")
                 except Exception as e:
-                    logger.error(f"Failed to load documents: {e}")
                     logger.warning("Falling back to canned responses")
                     self.use_ollama = False
+        
+    async def _wait_with_telemetry(self, duration: float) -> AsyncGenerator[dict, None]:
+        """
+        Wait for a duration while yielding memory telemetry events.
+        Updates at approx 5Hz (every 0.2s).
+        """
+        steps = int(duration / 0.2)
+        if steps < 1:
+            await asyncio.sleep(duration)
+            return
+
+        chunk = duration / steps
+        for _ in range(steps):
+            await asyncio.sleep(chunk)
+            memory_data, _ = self.memory_monitor.calculate_memory(self.current_progress)
+            yield MemoryEvent(data=memory_data).model_dump()
         
     async def run_simulation(self) -> AsyncGenerator[dict, None]:
         """
@@ -192,6 +221,7 @@ class SimulationOrchestrator:
         for doc_index in range(total_docs):
             # Calculate current progress
             progress_percent = ((doc_index + 1) / total_docs) * 100
+            self.current_progress = progress_percent
             
             # 1. SEND DOCUMENT EVENT
             doc_event = self._create_document_event(documents[doc_index], doc_index, total_docs)
@@ -234,7 +264,9 @@ class SimulationOrchestrator:
                     yield metric_event.model_dump()
             
             # 6. WAIT FOR NEXT TICK
-            await asyncio.sleep(interval)
+            async for event in self._wait_with_telemetry(interval):
+                yield event
+
         
         # SIMULATION COMPLETE
         complete_event = self._create_complete_event(memory_data)
@@ -304,7 +336,10 @@ class SimulationOrchestrator:
                     data=ThoughtData(
                         text=text,
                         status=phase_data["status"],
-                        timestamp=datetime.utcnow().isoformat() + "Z"
+                        timestamp=datetime.utcnow().isoformat() + "Z",
+                        step_type=phase_data.get("step_type", "thought"),
+                        tools=phase_data.get("tools"),
+                        related_doc_ids=phase_data.get("related_doc_ids")
                     )
                 )
         
@@ -336,6 +371,15 @@ class SimulationOrchestrator:
         # Use Ollama if available
         if self.use_ollama and self.ollama_service and self.ollama_context:
             try:
+                # Check for model swap
+                target_model = ANALYSIS_PHASES[current_phase].get("model", "llama3.1:8b")
+                if target_model != self.current_model:
+                     yield StatusEvent(message=f"Offloading Model: {self.current_model}...")
+                     async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
+                     yield StatusEvent(message=f"Loading Model: {target_model}...")
+                     async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
+                     self.current_model = target_model
+
                 logger.info(f"Generating LLM thought for phase: {current_phase}")
                 async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
                     self.ollama_context, 
@@ -346,7 +390,11 @@ class SimulationOrchestrator:
                         data=ThoughtData(
                             text=thought_text,
                             status="ANALYZING",
-                            timestamp=datetime.utcnow().isoformat() + "Z"
+                            timestamp=datetime.utcnow().isoformat() + "Z",
+                            step_type=ANALYSIS_PHASES[current_phase].get("step_type", "thought"),
+                            tools=ANALYSIS_PHASES[current_phase].get("tools"),
+                            related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
+                            author=ANALYSIS_PHASES[current_phase].get("author")
                         )
                     )
                     

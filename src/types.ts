@@ -2,6 +2,8 @@ export type SourceType = 'news' | 'social_media' | 'report' | 'sensor_log' | 'AI
 
 export type BadgeType = 'PROCESSING' | 'ACTIVE' | 'COMPLETE' | 'ANALYZING' | 'WAITING' | 'WARNING';
 
+export type StepType = 'plan' | 'action' | 'observation' | 'thought' | 'tool_use';
+
 export interface FeedItem {
     id: string;
     source: SourceType;
@@ -9,6 +11,10 @@ export interface FeedItem {
     content: string;
     timestamp: string;
     badge: string;
+    stepType?: StepType;
+    tools?: string[];
+    parentId?: string;
+    relatedDocIds?: string[];
 }
 
 export type WorldModelStatus = 'vram' | 'ssd_cache' | 'pending';
@@ -24,6 +30,7 @@ export interface WorldModelItem {
 
 export interface SystemState {
     vramUsage: number; // in GB
+    totalMemory: number; // in GB (Dynamic Capacity)
     ramUsage: number; // in GB
     ssdUsage: number; // in GB
     isAidaptivEnabled: boolean;

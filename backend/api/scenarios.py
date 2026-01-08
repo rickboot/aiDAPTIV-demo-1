@@ -19,11 +19,28 @@ async def health_check():
 
 @router.get("/system/info", response_model=SystemInfo)
 async def system_info():
-    """Get system information."""
+    """Get dynamic system information."""
+    import psutil
+    import platform
+    
+    # Get total memory in GB
+    vm = psutil.virtual_memory()
+    total_gb = vm.total / (1024**3)
+    
+    # Get Processor Info
+    proc_info = platform.machine()
+    system_name = platform.system()
+    
+    model_name = "Workstation"
+    if system_name == "Darwin":
+        model_name = f"Apple Silicon ({proc_info})"
+    elif system_name == "Windows":
+        model_name = f"Windows PC ({proc_info})"
+        
     return SystemInfo(
-        memory_gb=16.0,
-        model="MacBook Air M4",
-        platform="darwin"
+        memory_gb=round(total_gb, 1),
+        model=model_name,
+        platform=system_name.lower()
     )
 
 
