@@ -156,7 +156,12 @@ class SimulationOrchestrator:
                 try:
                     documents = self.ollama_service.load_documents(scenario, tier)
                     self.ollama_context = self.ollama_service.build_context(documents)
-                    logger.info(f"Loaded context: {len(self.ollama_context)} chars, ~{self.ollama_service.count_tokens(self.ollama_context)} tokens")
+                    context_tokens = self.ollama_service.count_tokens(self.ollama_context)
+                    logger.info(f"Loaded context: {len(self.ollama_context)} chars, ~{context_tokens} tokens")
+                    
+                    # Update memory monitor with context size
+                    self.memory_monitor.set_context_size(context_tokens)
+                    self.memory_monitor.set_model_size(self.current_model)
                 except Exception as e:
                     logger.warning("Falling back to canned responses")
                     self.use_ollama = False
@@ -381,6 +386,8 @@ class SimulationOrchestrator:
                      # WebSocket's continuous monitor will show memory changes during load
                      
                      self.current_model = target_model
+                     # Update memory monitor with new model size
+                     self.memory_monitor.set_model_size(target_model)
 
                 logger.info(f"Generating LLM thought for phase: {current_phase}")
                 async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
