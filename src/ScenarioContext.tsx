@@ -157,6 +157,28 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         fetchSystemInfo();
     }, []);
 
+    // Load current memory usage on mount (baseline before analysis)
+    useEffect(() => {
+        const fetchCurrentMemory = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/memory/current');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Baseline Memory:', data);
+                    setSystemState(prev => ({
+                        ...prev,
+                        vramUsage: data.unified_gb,
+                        ramUsage: data.unified_gb,
+                        ssdUsage: data.virtual_gb
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch current memory:', error);
+            }
+        };
+        fetchCurrentMemory();
+    }, []);
+
     const startAnalysis = async () => {
         if (isAnalysisRunning) return;
         setIsAnalysisRunning(true);

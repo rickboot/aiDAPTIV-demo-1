@@ -43,6 +43,22 @@ async def system_info():
     )
 
 
+@router.get("/memory/current")
+async def current_memory():
+    """Get current memory usage for baseline telemetry."""
+    vm = psutil.virtual_memory()
+    swap = psutil.swap_memory()
+    
+    return {
+        "unified_percent": round(vm.percent, 1),
+        "unified_gb": round(vm.used / (1024**3), 2),
+        "unified_total_gb": round(vm.total / (1024**3), 1),
+        "virtual_percent": round(swap.percent, 1),
+        "virtual_gb": round(swap.used / (1024**3), 2),
+        "virtual_active": swap.used > 100 * 1024 * 1024  # >100MB
+    }
+
+
 @router.get("/scenarios", response_model=ScenarioListResponse)
 async def list_scenarios():
     """List available scenarios."""
