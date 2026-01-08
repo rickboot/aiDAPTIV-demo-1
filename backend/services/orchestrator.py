@@ -261,6 +261,20 @@ class SimulationOrchestrator:
             # 5. SEND THOUGHT EVENTS (LLM-based or canned)
             async for thought_event in self._generate_llm_thought(progress_percent):
                 yield thought_event
+                
+                # Simulate context growth: each thought adds ~500-1000 tokens
+                if thought_event.get('type') == 'thought':
+                    thought_text = thought_event.get('data', {}).get('text', '')
+                    # Rough estimate: 4 chars per token
+                    tokens_added = len(thought_text) // 4
+                    current_tokens = self.memory_monitor.context_tokens
+                    self.memory_monitor.set_context_size(current_tokens + tokens_added)
+            
+            # Simulate context growth: each document adds to cumulative context
+            # In real agentic systems, documents stay in context for future agents
+            doc_tokens = 30  # ~30 tokens per document (small increment)
+            current_tokens = self.memory_monitor.context_tokens
+            self.memory_monitor.set_context_size(current_tokens + doc_tokens)
             
             # 6. SEND METRIC UPDATES (periodically)
             if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
