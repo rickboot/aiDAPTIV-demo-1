@@ -71,6 +71,11 @@ class MemoryData(BaseModel):
     virtual_percent: float = Field(default=0.0, ge=0, le=100)
     virtual_gb: float = Field(default=0.0, ge=0)
     virtual_active: bool = False
+    
+    # Context and KV cache tracking
+    context_tokens: int = Field(default=0, ge=0)
+    kv_cache_gb: float = Field(default=0.0, ge=0)
+    model_weights_gb: float = Field(default=0.0, ge=0)
 
 
 class MemoryEvent(BaseModel):
