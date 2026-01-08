@@ -8,14 +8,14 @@ export interface FeedItem {
     author: string;
     content: string;
     timestamp: string;
-    badge: BadgeType;
+    badge: string;
 }
 
 export type WorldModelStatus = 'vram' | 'ssd_cache' | 'pending';
 
 export interface WorldModelItem {
     id: string;
-    type: 'pdf_embedding' | 'screenshot';
+    type: 'screenshot' | 'pdf_embedding' | 'code';
     title: string;
     memorySize: number; // in MB
     lastAccessed: number;
@@ -36,6 +36,44 @@ export interface PerformanceMetrics {
     latency_ms: number;
     status: 'optimal' | 'degraded' | 'critical';
     degradation_percent: number;
+}
+
+export interface ImpactSummaryData {
+    documents_processed: number;
+    total_documents: number;
+    context_size_gb: number;
+    memory_saved_gb: number;
+    estimated_cost_local: number;
+    estimated_cost_cloud: number;
+    estimated_monthly_cost: number;
+    time_minutes: number;
+    time_without_aidaptiv: number;
+}
+
+export interface ImpactSummaryEvent {
+    type: 'impact_summary';
+    data: ImpactSummaryData;
+}
+
+// Re-export other event types if they were missing or implicit
+export interface ThoughtEvent { type: 'thought'; data: any; }
+export interface MemoryEvent { type: 'memory'; data: any; }
+export interface DocumentEvent { type: 'document'; data: any; }
+export interface PerformanceEvent { type: 'performance'; data: any; }
+export interface StatusEvent { type: 'status'; message: string; }
+export interface CompleteEvent { type: 'complete'; data: any; }
+
+export interface CrashData {
+    reason: string;
+    processed_documents: number;
+    total_documents: number;
+    required_vram_gb: number;
+    memory_snapshot?: any;
+}
+
+export interface CrashEvent {
+    type: 'crash';
+    data: CrashData;
 }
 
 export interface Scenario {

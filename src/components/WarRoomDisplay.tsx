@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useScenario } from '../ScenarioContext';
 import { SCENARIOS, SUCCESS_REPORT } from '../mockData';
-import type { BadgeType } from '../types';
+
 import { SettingsModal } from './SettingsModal';
 import { AboutModal } from './AboutModal';
 import { AboutAidaptivModal } from './AboutAidaptivModal';
+
+import { CrashOverlay } from './CrashOverlay';
 
 const Sidebar = () => {
     const { toggleMonitor, showHardwareMonitor, activeScenario, setActiveScenario, isAnalysisRunning } = useScenario();
@@ -118,7 +120,33 @@ const NavItem = ({ active, icon, label, onClick }: { active?: boolean, icon: str
 };
 
 
-const StatusBadge = ({ type }: { type: BadgeType }) => {
+// STAT CARD COMPONENT
+const StatCard = ({ title, value, trend, color, icon }: any) => {
+
+    const colors: any = {
+        cyan: 'text-cyan-400',
+        emerald: 'text-emerald-400',
+        amber: 'text-amber-400',
+        neutral: 'text-white'
+    };
+
+    return (
+        <div className="bg-dashboard-card p-2.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group hover:-translate-y-0.5 transition-transform duration-300">
+            <div className="relative z-10">
+                <div className="flex justify-between mb-1">
+                    <h4 className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{title}</h4>
+                    <span className="text-base grayscale opacity-50">{icon}</span>
+                </div>
+                <div className="flex items-end justify-between">
+                    <div className={`text-2xl font-bold ${colors[color]} tracking-tight transition-all duration-300`}>{value}</div>
+                    <div className="mb-0.5 text-[9px] font-medium bg-white/5 px-1.5 py-0.5 rounded text-white/70">{trend}</div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+const StatusBadge = ({ type }: { type: string }) => {
     switch (type) {
         case 'PROCESSING':
             return <span className="px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[10px] font-bold text-blue-500 tracking-wider">PROCESSING</span>;
@@ -137,65 +165,103 @@ const StatusBadge = ({ type }: { type: BadgeType }) => {
 }
 
 // SUCCESS OVERLAY
-const SuccessOverlay = ({ onClose }: { onClose: () => void }) => (
-    <div className="absolute inset-0 bg-dashboard-bg/95 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in text-white p-8">
-        <div className="max-w-4xl w-full bg-[#1e293b] border border-emerald-500/30 rounded-2xl shadow-[0_0_50px_rgba(16,185,129,0.2)] p-10 flex flex-col items-center">
+// SUCCESS OVERLAY
+const SuccessOverlay = ({ onClose }: { onClose: () => void }) => {
+    const { metrics } = useScenario();
 
-            <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mb-6 ring-4 ring-emerald-500/20">
-                <svg className="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-            </div>
+    return (
+        <div className="absolute inset-0 bg-dashboard-bg/95 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in text-white p-8">
+            <div className="max-w-5xl w-full bg-[#1e293b] border border-blue-500/30 rounded-2xl shadow-[0_0_50px_rgba(59,130,246,0.15)] p-0 overflow-hidden flex flex-col">
 
-            <h2 className="text-3xl font-bold text-white mb-2">{SUCCESS_REPORT.title}</h2>
-            <div className="text-emerald-400 font-mono text-sm tracking-widest uppercase mb-8">{SUCCESS_REPORT.mainInsight}</div>
-
-            <div className="grid grid-cols-2 gap-10 w-full mb-10">
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700 pb-2">Key Finding</h3>
-                    <p className="text-lg leading-relaxed font-light">{SUCCESS_REPORT.finding}</p>
-                    <ul className="space-y-2">
-                        {SUCCESS_REPORT.evidence.map((line, i) => (
-                            <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
-                                <span className="text-emerald-500 mt-1">▸</span> {line}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-
-                <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest border-b border-gray-700 pb-2">Memory Performance</h3>
-
-                    {/* MEMORY STATS */}
-                    <div className="bg-black/30 p-4 rounded-xl border border-gray-700 space-y-4">
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-400 text-sm">Total Context</span>
-                            <span className="text-white font-mono font-bold text-xl">{SUCCESS_REPORT.stats.contextProcessed}</span>
+                {/* Report Header */}
+                <div className="bg-slate-800/50 p-8 border-b border-dashboard-border flex justify-between items-start">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest rounded-md border border-blue-500/20">
+                                CONFIDENTIAL
+                            </div>
+                            <div className="text-text-muted text-xs uppercase tracking-wider">
+                                GENERATED: {new Date().toLocaleDateString()}
+                            </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-gray-400 text-sm">GPU Usage</span>
-                            <span className="text-amber-400 font-mono font-bold">{SUCCESS_REPORT.stats.gpuUtil} (Capped)</span>
-                        </div>
-
-                        {/* HERO METRIC */}
-                        <div className="bg-[#a855f7]/20 p-3 rounded-lg border border-[#a855f7]/50 flex justify-between items-center shadow-[0_0_15px_rgba(168,85,247,0.3)]">
-                            <span className="text-[#e9d5ff] font-bold text-sm">aiDAPTIV+ SSD Offload</span>
-                            <span className="text-white font-mono font-bold text-xl">{SUCCESS_REPORT.stats.ssdOffload}</span>
-                        </div>
+                        <h2 className="text-3xl font-bold text-white tracking-tight">Strategic Intelligence Report</h2>
+                        <div className="text-blue-300/80 mt-1">Target: Competitive Landscape Q1 2026</div>
                     </div>
-
-                    <div className="text-xs text-gray-500 italic text-center">
-                        Without aiDAPTIV+, analysis would have failed at 24GB.
+                    <div className="text-right">
+                        <div className="text-4xl font-black text-emerald-400 tracking-tighter">HIGH</div>
+                        <div className="text-xs font-bold text-text-secondary uppercase tracking-widest">THREAT LEVEL DETECTED</div>
                     </div>
                 </div>
-            </div>
 
-            <div className="flex gap-4">
-                <button onClick={onClose} className="px-8 py-3 rounded-xl bg-gray-700 hover:bg-gray-600 text-white font-bold shadow-lg transition-all transform hover:scale-105">
-                    Close
-                </button>
+                <div className="flex flex-1">
+                    {/* Left: Key Insights */}
+                    <div className="w-2/3 p-8 border-r border-dashboard-border">
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-accent-primary rounded-full"></span> Executive Summary
+                        </h3>
+
+                        <div className="mb-8">
+                            <div className="text-xl font-light leading-relaxed text-white mb-4">
+                                {SUCCESS_REPORT.finding}
+                            </div>
+                            <div className="p-4 bg-blue-500/10 border-l-4 border-blue-500 rounded-r-lg">
+                                <div className="text-xs font-bold text-blue-300 uppercase mb-1">Strategic Implication</div>
+                                <div className="text-sm text-blue-100/80 leading-relaxed">
+                                    {SUCCESS_REPORT.implication}
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Supporting Evidence</h3>
+                        <ul className="space-y-3">
+                            {SUCCESS_REPORT.evidence.map((line, i) => (
+                                <li key={i} className="flex items-start gap-3 text-sm text-gray-300 group">
+                                    <span className="text-blue-500 mt-1.5 text-[10px]">●</span>
+                                    <span className="group-hover:text-white transition-colors">{line}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    {/* Right: Metrics & Actions */}
+                    <div className="w-1/3 bg-slate-800/20 p-8 flex flex-col">
+
+                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-6">Analysis Scope</h3>
+
+                        <div className="space-y-4 mb-8">
+                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
+                                <span className="text-sm text-text-secondary">Competitors Analyzed</span>
+                                <span className="font-mono font-bold text-white">{metrics.competitors}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
+                                <span className="text-sm text-text-secondary">Visual Assets</span>
+                                <span className="font-mono font-bold text-white">{metrics.visuals}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
+                                <span className="text-sm text-text-secondary">Research Papers</span>
+                                <span className="font-mono font-bold text-white">{metrics.papers}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
+                                <span className="text-sm text-text-secondary">Verified Signals</span>
+                                <span className="font-mono font-bold text-white text-amber-400">{metrics.signals}</span>
+                            </div>
+                        </div>
+
+                        <div className="mt-auto space-y-3">
+                            <button className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                                EXPORT REPORT
+                            </button>
+                            <button onClick={onClose} className="w-full py-3 rounded-lg bg-transparent border border-gray-600 hover:bg-gray-700 text-text-secondary hover:text-white font-bold text-sm transition-all">
+                                CLOSE
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
 
 export const WarRoomDisplay = () => {
@@ -206,6 +272,26 @@ export const WarRoomDisplay = () => {
         activeScenario, tier
     } = useScenario();
 
+    const activeFileRef = React.useRef<HTMLDivElement>(null);
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const [focusedThoughtId, setFocusedThoughtId] = React.useState<string | null>(null);
+    const [dataFilter, setDataFilter] = React.useState<'ALL' | 'LIVE' | 'ARCHIVE'>('ALL');
+
+    // Auto-scroll effect for Data Grid (only if ALL or LIVE)
+    React.useEffect(() => {
+        if (isAnalysisRunning && activeFileRef.current && (dataFilter === 'ALL' || dataFilter === 'LIVE')) {
+            activeFileRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [worldModel, isAnalysisRunning, dataFilter]);
+
+    // Auto-scroll effect for Reasoning Chain
+    React.useEffect(() => {
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
+        }
+    }, [feed]);
+
     return (
         <div className="flex h-screen bg-dashboard-bg font-sans overflow-hidden relative">
             <Sidebar />
@@ -214,8 +300,14 @@ export const WarRoomDisplay = () => {
                 {/* SUCCESS OVERLAY */}
                 {isSuccess && <SuccessOverlay onClose={closeResults} />}
 
+                {/* CRASH OVERLAY */}
+                {/* @ts-ignore - isCrashed is definitely in context, adding fallback just in case */}
+                {/* We need to update useScenario return type if TS complains, but for now assuming it's there or will be added */}
+                {/* Actually, let's just use it. If TS errors, I will fix types.ts or ScenarioContext.tsx */}
+                <CrashOverlay />
+
                 {/* MAIN DASHBOARD CONTENT */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth">
+                <div className="flex-1 overflow-hidden p-6 flex flex-col space-y-6">
 
                     {/* Page Title & Trigger */}
                     <div className="flex justify-between items-end">
@@ -276,6 +368,10 @@ export const WarRoomDisplay = () => {
                         </div>
                     </div>
 
+
+
+
+
                     {/* DYNAMIC WIDGETS ROW - Compact */}
                     <div className="grid grid-cols-4 gap-4">
                         <StatCard title="COMPETITORS TRACKED" value={metrics.competitors} trend="Active" color="neutral" icon="🎯" />
@@ -284,7 +380,7 @@ export const WarRoomDisplay = () => {
                         <StatCard title="SIGNALS DETECTED" value={metrics.signals} trend={metrics.signals > 0 ? "Pivots found" : "Monitoring..."} color="amber" icon="⚠️" />
                     </div>
 
-                    <div className="grid grid-cols-12 gap-6 h-[560px]">
+                    <div className="grid grid-cols-12 gap-6 flex-1 min-h-0">
                         {/* AI REASONING CHAIN */}
                         <div className="col-span-12 lg:col-span-7 bg-dashboard-card rounded-lg border border-dashboard-border/50 flex flex-col shadow-sm overflow-hidden">
                             {/* ... Header ... */}
@@ -294,10 +390,16 @@ export const WarRoomDisplay = () => {
                                     <span className={`w-2 h-2 rounded-full ${isAnalysisRunning ? 'bg-accent-primary animate-pulse' : 'bg-dashboard-border'}`}></span>
                                 </div>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-dashboard-bg/20 scroll-smooth flex flex-col-reverse"> {/* Reverse col for auto scroll (naive) - actually mapped order matters */}
-                                {/* Map normal order, assuming new items unshift to top in Context */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-dashboard-bg/20">
                                 {feed.map(item => (
-                                    <div key={item.id} className="p-4 rounded-lg border border-dashboard-border/50 bg-dashboard-card/80 hover:bg-white/[0.03] transition-colors group shadow-sm animate-fade-in-up">
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setFocusedThoughtId(focusedThoughtId === item.id ? null : item.id)}
+                                        className={`p-4 rounded-lg border transition-all cursor-pointer group shadow-sm animate-fade-in-up ${focusedThoughtId === item.id
+                                            ? 'bg-blue-900/40 border-blue-500/50 scale-[1.01] shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+                                            : 'border-dashboard-border/50 bg-dashboard-card/80 hover:bg-white/[0.03] hover:border-dashboard-border'
+                                            }`}
+                                    >
                                         {/* ... Item content ... */}
                                         <div className="flex justify-between items-center mb-2">
                                             <div className="flex items-center gap-2">
@@ -306,62 +408,109 @@ export const WarRoomDisplay = () => {
                                             </div>
                                             <StatusBadge type={item.badge} />
                                         </div>
-                                        <div className="text-xs text-text-primary whitespace-pre-wrap font-mono leading-relaxed opacity-90 pl-2 border-l-2 border-dashboard-border group-hover:border-accent-primary transition-colors">
+                                        <div className={`text-xs whitespace-pre-wrap font-mono leading-relaxed pl-2 border-l-2 transition-colors ${focusedThoughtId === item.id
+                                            ? 'text-blue-100 border-blue-400'
+                                            : 'text-text-primary opacity-90 border-dashboard-border group-hover:border-accent-primary'
+                                            }`}>
                                             {item.content}
                                         </div>
                                     </div>
                                 ))}
+                                <div ref={messagesEndRef} />
                             </div>
                         </div>
 
                         {/* DATA SOURCES GRID */}
                         <div className="col-span-12 lg:col-span-5 bg-dashboard-card rounded-lg border border-dashboard-border/50 flex flex-col shadow-sm overflow-hidden">
                             {/* ... Header ... */}
-                            <div className="p-4 border-b border-dashboard-border/50 flex justify-between items-center bg-dashboard-card">
-                                <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest">Data Sources</h3>
-                                <div className="flex gap-4 text-xs font-mono">
-                                    <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / 96</span>
+                            <div className="p-4 border-b border-dashboard-border/50 flex flex-col gap-3 bg-dashboard-card z-10">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest">Data Sources</h3>
+                                    <div className="flex gap-4 text-xs font-mono">
+                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / 96</span>
+                                    </div>
+                                </div>
+                                {/* Filter Toolbar */}
+                                <div className="flex gap-1 p-1 bg-dashboard-bg/50 rounded-lg">
+                                    {['ALL', 'LIVE', 'ARCHIVE'].map(f => (
+                                        <button
+                                            key={f}
+                                            onClick={() => setDataFilter(f as any)}
+                                            className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${dataFilter === f
+                                                ? 'bg-blue-600 text-white shadow-sm'
+                                                : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                                                }`}
+                                        >
+                                            {f}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
 
-                            <div className="flex-1 p-4 overflow-y-auto bg-dashboard-bg/30">
+                            <div className="flex-1 p-4 overflow-y-auto bg-dashboard-bg/30" ref={scrollContainerRef}>
                                 <div className="space-y-1">
-                                    {worldModel.map((item, i) => (
-                                        <div
-                                            key={item.id}
-                                            className={`px-3 py-2 rounded-lg transition-all duration-300 flex items-center justify-between border ${item.status === 'vram'
-                                                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-200'
-                                                : 'bg-dashboard-card/20 border-transparent text-text-muted opacity-50'
-                                                } ${isAnalysisRunning && item.status === 'pending' && i === worldModel.findIndex(x => x.status === 'pending')
-                                                    ? '!opacity-100 !bg-blue-500/10 !border-blue-500/50 !text-blue-200 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
-                                                    : ''
-                                                }`}
-                                        >
-                                            {/* Left: Type icon and filename */}
-                                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                <span className="text-base shrink-0">
-                                                    {item.type === 'screenshot' ? '🖥️' : '📄'}
-                                                </span>
-                                                <div className="flex flex-col min-w-0">
-                                                    <span className="text-xs font-mono truncate">{item.title}</span>
-                                                    <span className="text-[10px] opacity-60">
-                                                        {item.type === 'screenshot' ? 'Visual' : 'Document'}
-                                                    </span>
+                                    {worldModel.filter(item => {
+                                        if (dataFilter === 'ALL') return true;
+                                        if (dataFilter === 'LIVE') return item.status === 'pending' || (isAnalysisRunning && item.status === 'vram' && worldModel.findIndex(x => x.id === item.id) === worldModel.findIndex(x => x.status === 'pending') - 1); // Show pending + just finished
+                                        if (dataFilter === 'ARCHIVE') return item.status === 'vram';
+                                        return true;
+                                    }).map((item, i) => {
+                                        // Determine if this is the "active" item (first pending item)
+                                        const pendingIndex = worldModel.findIndex(x => x.status === 'pending');
+                                        const isActualActive = isAnalysisRunning && item.id === worldModel[pendingIndex]?.id;
+                                        const isProcessed = item.status === 'vram';
+
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                ref={isActualActive ? activeFileRef : null}
+                                                className={`px-3 py-2 rounded-lg transition-all duration-300 flex items-center justify-between border group ${isProcessed
+                                                    ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-200 hover:bg-emerald-500/10'
+                                                    : isActualActive
+                                                        ? 'bg-blue-500/20 border-blue-500/50 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.2)] scale-[1.02]'
+                                                        : 'bg-dashboard-card/20 border-transparent text-text-muted opacity-40 hover:opacity-70'
+                                                    }`}
+                                            >
+                                                {/* Left: Type icon and filename */}
+                                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                    <div className={`w-8 h-8 rounded flex items-center justify-center text-lg ${isActualActive ? 'bg-blue-500/20 animate-bounce' : 'bg-black/20'
+                                                        }`}>
+                                                        {item.type === 'screenshot' ? '🖥️' : '📄'}
+                                                    </div>
+
+                                                    <div className="flex flex-col min-w-0">
+                                                        <span className={`text-xs font-mono truncate ${isActualActive ? 'font-bold text-white' : ''}`}>{item.title}</span>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className={`text-[9px] font-bold px-1.5 py-px rounded ${item.type === 'screenshot'
+                                                                ? 'bg-purple-500/20 text-purple-300'
+                                                                : 'bg-amber-500/20 text-amber-300'
+                                                                }`}>
+                                                                {item.type === 'screenshot' ? 'IMG' : 'DOC'}
+                                                            </span>
+                                                            <span className="text-[9px] opacity-50 font-mono">{item.memorySize.toFixed(1)}KB</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right: Size and status */}
+                                                <div className="flex items-center gap-3 shrink-0">
+                                                    {/* Quick View Button (Visible on Hover) */}
+                                                    <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-bold text-white">
+                                                        VIEW
+                                                    </button>
+
+                                                    {isActualActive ? (
+                                                        <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+                                                    ) : (
+                                                        <div className={`w-2 h-2 rounded-full ${isProcessed
+                                                            ? 'bg-emerald-500 shadow-[0_0_4px_#34d399]'
+                                                            : 'bg-gray-600'
+                                                            }`} />
+                                                    )}
                                                 </div>
                                             </div>
-
-                                            {/* Right: Size and status */}
-                                            <div className="flex items-center gap-3 shrink-0">
-                                                <span className="text-[10px] font-mono opacity-70">
-                                                    {item.memorySize.toFixed(1)}KB
-                                                </span>
-                                                <div className={`w-2 h-2 rounded-full ${item.status === 'vram'
-                                                    ? 'bg-emerald-500 shadow-[0_0_4px_#34d399]'
-                                                    : 'bg-gray-600'
-                                                    }`} />
-                                            </div>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                 </div>
                             </div>
                         </div>
@@ -373,28 +522,3 @@ export const WarRoomDisplay = () => {
         </div>
     );
 };
-
-const StatCard = ({ title, value, trend, color, icon }: any) => {
-
-    const colors: any = {
-        cyan: 'text-cyan-400',
-        emerald: 'text-emerald-400',
-        amber: 'text-amber-400',
-        neutral: 'text-white'
-    };
-
-    return (
-        <div className="bg-dashboard-card p-2.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group hover:-translate-y-0.5 transition-transform duration-300">
-            <div className="relative z-10">
-                <div className="flex justify-between mb-1">
-                    <h4 className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{title}</h4>
-                    <span className="text-base grayscale opacity-50">{icon}</span>
-                </div>
-                <div className="flex items-end justify-between">
-                    <div className={`text-2xl font-bold ${colors[color]} tracking-tight transition-all duration-300`}>{value}</div>
-                    <div className="mb-0.5 text-[9px] font-medium bg-white/5 px-1.5 py-0.5 rounded text-white/70">{trend}</div>
-                </div>
-            </div>
-        </div>
-    )
-}

@@ -121,6 +121,24 @@ class StatusEvent(BaseModel):
     message: str = Field(..., description="Current activity status message")
 
 
+class ImpactSummaryData(BaseModel):
+    """Analysis impact summary data."""
+    documents_processed: int = Field(..., ge=0, description="Number of documents successfully processed")
+    total_documents: int = Field(..., ge=0, description="Total documents in analysis")
+    context_size_gb: float = Field(..., ge=0, description="Total context size in GB")
+    memory_saved_gb: float = Field(default=0, ge=0, description="Memory offloaded to SSD in GB")
+    estimated_cost_local: float = Field(default=0, ge=0, description="Cost to run locally")
+    estimated_cost_cloud: float = Field(..., ge=0, description="Cost to run on cloud GPU")
+    time_minutes: float = Field(..., ge=0, description="Actual analysis time in minutes")
+    time_without_aidaptiv: float = Field(..., ge=0, description="Estimated time without aiDAPTIV+")
+
+
+class ImpactSummaryEvent(BaseModel):
+    """Impact summary event message."""
+    type: Literal["impact_summary"] = "impact_summary"
+    data: ImpactSummaryData
+
+
 class FindingsData(BaseModel):
     """Analysis findings."""
     shifts_detected: int
@@ -151,13 +169,12 @@ class CompleteEvent(BaseModel):
 
 
 class CrashData(BaseModel):
-    """Simulation crash data."""
-    progress_percent: float = Field(..., ge=0, le=100)
-    docs_loaded: int = Field(..., ge=0)
-    docs_total: int = Field(..., gt=0)
-    memory_used_gb: float = Field(..., ge=0)
-    memory_limit_gb: float = 16.0
+    """Crash event data."""
     reason: str
+    memory_snapshot: MemoryData
+    processed_documents: int = Field(default=0, description="Number of documents processed before crash")
+    total_documents: int = Field(default=0, description="Total documents in scenario")
+    required_vram_gb: float = Field(default=0.0, description="Estimated VRAM needed")
 
 
 class CrashEvent(BaseModel):

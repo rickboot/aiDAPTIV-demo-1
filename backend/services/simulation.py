@@ -12,7 +12,8 @@ import logging
 from models.schemas import (
     ScenarioConfig, ThoughtEvent, ThoughtData, MemoryEvent, DocumentEvent,
     DocumentData, MetricEvent, MetricData, CompleteEvent, CompleteData,
-    CrashEvent, CrashData, FindingsData, MemoryStatsData, PerformanceEvent, PerformanceData
+    CrashEvent, CrashData, FindingsData, MemoryStatsData, PerformanceEvent, PerformanceData,
+    ImpactSummaryEvent, ImpactSummaryData
 )
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
@@ -213,7 +214,11 @@ class SimulationOrchestrator:
             
             # 4. CHECK FOR CRASH
             if should_crash and not self.aidaptiv_enabled:
-                crash_event = self._create_crash_event(progress_percent, doc_index + 1, total_docs, memory_data)
+                crash_event = self._create_crash_event(
+                    memory_data, 
+                    progress_percent, 
+                    "Out of unified memory - aiDAPTIV+ required for this workload"
+                )
                 yield crash_event.model_dump()
                 return  # Stop simulation
             
@@ -234,6 +239,10 @@ class SimulationOrchestrator:
         # SIMULATION COMPLETE
         complete_event = self._create_complete_event(memory_data)
         yield complete_event.model_dump()
+        
+        # SEND IMPACT SUMMARY
+        impact_summary = self._create_impact_summary(total_docs, memory_data, duration)
+        yield impact_summary.model_dump()
     
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
@@ -396,21 +405,25 @@ class SimulationOrchestrator:
         
         return events
     
-    def _create_crash_event(self, progress: float, docs_loaded: int, docs_total: int, memory_data) -> CrashEvent:
+    def _create_crash_event(self, memory_data, progress, reason: str) -> CrashEvent:
         """Create a crash event."""
+        # Calculate processed documents based on progress
+        total_docs = 268 if self.config.tier == "large" else 18
+        processed_docs = int(total_docs * (progress / 100))
+        
         return CrashEvent(
             data=CrashData(
-                progress_percent=round(progress, 1),
-                docs_loaded=docs_loaded,
-                docs_total=docs_total,
-                memory_used_gb=memory_data.unified_gb,
-                memory_limit_gb=16.0,
-                reason="Out of unified memory - aiDAPTIV+ required for this workload"
+                reason=reason,
+                memory_snapshot=memory_data,
+                processed_documents=processed_docs,
+                total_documents=total_docs,
+                required_vram_gb=48.0 # Hardcoded estimate for large tier
             )
         )
     
+    
     def _create_complete_event(self, memory_data) -> CompleteEvent:
-        """Create a completion event."""
+        """Create analysis complete event."""
         tier = self.config.tier
         
         findings = FindingsData(
@@ -432,5 +445,41 @@ class SimulationOrchestrator:
                 tier=self.config.tier,
                 findings=findings,
                 memory_stats=memory_stats
+            )
+        )
+    
+    def _create_impact_summary(self, total_docs: int, memory_data, duration_seconds: float) -> ImpactSummaryEvent:
+        """Create impact summary event with analysis metrics."""
+        # Calculate context size (rough estimate based on documents)
+        avg_doc_size_mb = 0.05  # 50KB average
+        context_size_gb = (total_docs * avg_doc_size_mb) / 1024
+        
+        # Calculate memory saved (offloaded to SSD)
+        memory_saved_gb = memory_data.virtual_gb if memory_data.virtual_active else 0.0
+        
+        # Estimate costs
+        estimated_cost_local = 0.0
+        
+        # Cloud GPU estimate
+        if self.config.tier == "lite":
+            estimated_cost_cloud = 0.10
+            time_without_aidaptiv = duration_seconds / 60
+        else:
+            estimated_cost_cloud = 45.0
+            time_without_aidaptiv = 15.0
+        
+        time_minutes = duration_seconds / 60
+        
+        return ImpactSummaryEvent(
+            data=ImpactSummaryData(
+                documents_processed=total_docs,
+                total_documents=total_docs,
+                context_size_gb=round(context_size_gb, 2),
+                memory_saved_gb=round(memory_saved_gb, 2),
+                estimated_cost_local=estimated_cost_local,
+                estimated_cost_cloud=estimated_cost_cloud,
+                estimated_monthly_cost=50.0 if self.config.tier == "lite" else 3200.0,
+                time_minutes=round(time_minutes, 1),
+                time_without_aidaptiv=time_without_aidaptiv
             )
         )

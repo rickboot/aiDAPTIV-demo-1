@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { FeedItem, WorldModelItem, SystemState, Scenario, PerformanceMetrics } from './types';
+import type { CompleteEvent, FeedItem, MemoryEvent, PerformanceMetrics, Scenario, StatusEvent, SystemState, ThoughtEvent, PerformanceEvent, ImpactSummaryEvent, ImpactSummaryData, WorldModelItem, CrashEvent, CrashData } from './types';
 import { SCENARIOS, INITIAL_WORLD_MODEL, INITIAL_METRICS } from './mockData';
 
 interface Metrics {
@@ -20,7 +20,10 @@ interface ScenarioContextType {
     activeScenario: Scenario;
     setActiveScenario: (id: string) => void;
     isAnalysisRunning: boolean;
-    startAnalysis: () => void;
+    analysisState: 'running' | 'completed' | 'idle' | 'crashed';
+    impactSummary: ImpactSummaryData | null;
+    crashDetails: CrashData | null;
+    startAnalysis: () => Promise<void>;
     stopAnalysis: () => void;
     showHardwareMonitor: boolean;
     toggleMonitor: () => void;
@@ -47,6 +50,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
+    const [isCrashed, setIsCrashed] = useState(false);
 
     const [showHardwareMonitor, setShowHardwareMonitor] = useState(true); // Enabled by default for dev
     const [tier, setTierState] = useState<'lite' | 'large'>('lite'); // Default to lite for faster demos
@@ -59,6 +63,9 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         degradation_percent: 0
     };
     const [performance, setPerformance] = useState<PerformanceMetrics>(INITIAL_PERFORMANCE);
+
+    const [impactSummary, setImpactSummary] = useState<ImpactSummaryData | null>(null);
+    const [crashDetails, setCrashDetails] = useState<CrashData | null>(null);
 
     const [currentActivity, setCurrentActivity] = useState<string>('Idle');
 
@@ -78,7 +85,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         const found = SCENARIOS.find(s => s.id === id);
         if (found) {
             setActiveScenarioState(found);
-            resetSimulation();
+            resetAnalysis();
             setFeed(found.initialFeed);
         }
     };
@@ -93,6 +100,9 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         setIsAnalysisRunning(false);
         setIsSuccess(false);
         setIsComplete(false);
+        setIsCrashed(false);
+        setImpactSummary(null);
+        setCrashDetails(null);
         setSystemState(prev => ({ ...prev, vramUsage: 0, ramUsage: 16.0, ssdUsage: 0 }));
         setWorldModel([]); // Clear to repopulate dynamically
         setFeed(activeScenario.initialFeed);
@@ -125,12 +135,19 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const startAnalysis = () => {
+    const startAnalysis = async () => {
         if (isAnalysisRunning) return;
         setIsAnalysisRunning(true);
         setIsComplete(false);
         setIsSuccess(false);
+        setIsCrashed(false);
+        setImpactSummary(null);
+        setCrashDetails(null);
         setCurrentActivity('Initializing analysis...');
+
+        if (tier === 'large') {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate connection delay for large
+        }
 
         // Connect to WebSocket
         console.log('Connecting to WebSocket:', WS_URL);
@@ -278,21 +295,24 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 break;
 
             case 'crash':
-                // Simulation crashed
-                setCurrentActivity('System crashed - Out of memory');
-                console.log('Simulation crashed:', message.data);
+                const crashEvent = message as CrashEvent;
+                console.log('Simulation crashed:', crashEvent.data);
+                setIsCrashed(true);
+                setCrashDetails(crashEvent.data);
                 setIsAnalysisRunning(false);
-
-                // Update to show OOM state
                 setSystemState(prev => ({
                     ...prev,
-                    vramUsage: 24.1 // Force OOM visual
+                    vramUsage: 24.1, // Force VRAM spike visualization
                 }));
-
                 if (wsRef.current) {
                     wsRef.current.close();
                     wsRef.current = null;
                 }
+                break;
+
+            case 'impact_summary':
+                const impactEvent = message as ImpactSummaryEvent;
+                setImpactSummary(impactEvent.data);
                 break;
 
             default:
@@ -311,12 +331,30 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
     return (
         <ScenarioContext.Provider value={{
-            feed, worldModel, systemState, metrics, performance, currentActivity, toggleAidaptiv,
-            activeScenario, setActiveScenario,
-            isAnalysisRunning, startAnalysis, stopAnalysis,
-            showHardwareMonitor, toggleMonitor,
-            isSuccess, isComplete, showResults, closeResults, resetAnalysis,
-            tier, setTier
+            feed,
+            worldModel,
+            systemState,
+            metrics,
+            performance,
+            currentActivity,
+            toggleAidaptiv,
+            activeScenario,
+            setActiveScenario,
+            isAnalysisRunning,
+            analysisState: isAnalysisRunning ? 'running' : (isCrashed ? 'crashed' : (isComplete ? 'completed' : 'idle')),
+            impactSummary,
+            crashDetails,
+            startAnalysis,
+            stopAnalysis,
+            showHardwareMonitor,
+            toggleMonitor,
+            isSuccess,
+            isComplete,
+            showResults,
+            closeResults,
+            resetAnalysis,
+            tier,
+            setTier
         }}>
             {children}
         </ScenarioContext.Provider>
