@@ -374,9 +374,9 @@ class SimulationOrchestrator:
                 # Check for model swap
                 target_model = ANALYSIS_PHASES[current_phase].get("model", "llama3.1:8b")
                 if target_model != self.current_model:
-                     yield StatusEvent(message=f"Offloading Model: {self.current_model}...")
+                     yield StatusEvent(message=f"Offloading Model: {self.current_model}...").model_dump()
                      async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
-                     yield StatusEvent(message=f"Loading Model: {target_model}...")
+                     yield StatusEvent(message=f"Loading Model: {target_model}...").model_dump()
                      async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
                      self.current_model = target_model
 
@@ -396,10 +396,10 @@ class SimulationOrchestrator:
                             related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
                             author=ANALYSIS_PHASES[current_phase].get("author")
                         )
-                    )
+                    ).model_dump()
                     
                     # Yield live performance metrics from Ollama
-                    yield PerformanceEvent(data=PerformanceData(**performance_metrics))
+                    yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
                     
                     # Throttle streaming for readability
                     await asyncio.sleep(config.THOUGHT_STREAM_DELAY)
@@ -409,12 +409,12 @@ class SimulationOrchestrator:
                 # Fall back to canned response
                 canned_thought = self._check_and_create_thought(progress_percent)
                 if canned_thought:
-                    yield canned_thought
+                    yield canned_thought.model_dump()
         else:
             # Use canned response
             canned_thought = self._check_and_create_thought(progress_percent)
             if canned_thought:
-                yield canned_thought
+                yield canned_thought.model_dump()
     
     def _create_metric_updates(self, progress_percent: float) -> list[MetricEvent]:
         """Create metric update events based on progress."""
