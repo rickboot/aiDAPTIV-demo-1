@@ -131,7 +131,7 @@ const StatCard = ({ title, value, trend, color, icon }: any) => {
     };
 
     return (
-        <div className="bg-dashboard-card p-2.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group hover:-translate-y-0.5 transition-transform duration-300">
+        <div className="bg-dashboard-card p-2.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group">
             <div className="relative z-10">
                 <div className="flex justify-between mb-1">
                     <h4 className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{title}</h4>
