@@ -35,7 +35,7 @@ ANALYSIS_PHASES = {
     "phase_2_patterns": {
         "name": "Pattern Detection",
         "prompt": "Now analyze the competitor descriptions and UI changes. What patterns do you notice in their product interfaces and architectures? Be specific about which competitors show similar changes.",
-        "trigger_percent": 25,
+        "trigger_percent": 15,  # Trigger earlier to ensure model swap happens
         "step_type": "thought",
         "related_doc_ids": ["Comp_UI_1", "Comp_UI_2", "Comp_Archive_X"],
         "author": "@AI_Analyst",
