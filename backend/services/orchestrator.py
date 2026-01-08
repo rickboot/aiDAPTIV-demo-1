@@ -375,9 +375,9 @@ class SimulationOrchestrator:
                 target_model = ANALYSIS_PHASES[current_phase].get("model", "llama3.1:8b")
                 if target_model != self.current_model:
                      yield StatusEvent(message=f"Offloading Model: {self.current_model}...").model_dump()
-                     async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
+                     async for e in self._wait_with_telemetry(2.0): yield e # Longer pause to show memory changes
                      yield StatusEvent(message=f"Loading Model: {target_model}...").model_dump()
-                     async for e in self._wait_with_telemetry(1.0): yield e # Visual pause with telemetry
+                     async for e in self._wait_with_telemetry(3.0): yield e # Longer pause to show model loading memory spike
                      self.current_model = target_model
 
                 logger.info(f"Generating LLM thought for phase: {current_phase}")

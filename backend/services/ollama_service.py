@@ -40,7 +40,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": ["Comp_UI_1", "Comp_UI_2", "Comp_Archive_X"],
         "author": "@AI_Analyst",
         "system_prompt": "You are an Expert UI Analyst. Focus strictly on visual patterns, interface elements, and user experience changes. Be detailed and observational.",
-        "model": "qwen2.5:32b"
+        "model": "qwen2.5:14b"
     },
     "phase_3_technical": {
         "name": "Technical Cross-Reference",
@@ -51,7 +51,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": ["arXiv_2401.12847"],
         "author": "@Tech_Specialist",
         "system_prompt": "You are a Chief Software Architect. Focus on backend infrastructure, agentic frameworks, and technical feasibility. Ignore marketing fluff.",
-        "model": "qwen2.5:32b"
+        "model": "qwen2.5:14b"
     },
     "phase_4_social": {
         "name": "Social Signal Validation",
