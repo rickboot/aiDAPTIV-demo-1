@@ -267,7 +267,10 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                     vramUsage: message.data.unified_gb,
                     totalMemory: message.data.unified_total_gb || 16,
                     ramUsage: message.data.unified_gb, // Deprecated field, keep in sync or ignore
-                    ssdUsage: message.data.virtual_gb
+                    ssdUsage: message.data.virtual_gb,
+                    context_tokens: message.data.context_tokens || 0,
+                    kv_cache_gb: message.data.kv_cache_gb || 0,
+                    model_weights_gb: message.data.model_weights_gb || 0
                 }));
                 break;
 
