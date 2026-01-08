@@ -375,34 +375,85 @@ class SimulationOrchestrator:
                 target_model = ANALYSIS_PHASES[current_phase].get("model", "llama3.1:8b")
                 if target_model != self.current_model:
                      yield StatusEvent(message=f"Offloading Model: {self.current_model}...").model_dump()
-                     async for e in self._wait_with_telemetry(2.0): yield e # Longer pause to show memory changes
+                     async for e in self._wait_with_telemetry(2.0): yield e
+                     
                      yield StatusEvent(message=f"Loading Model: {target_model}...").model_dump()
-                     async for e in self._wait_with_telemetry(3.0): yield e # Longer pause to show model loading memory spike
+                     
+                     # Start background telemetry during model load
+                     telemetry_queue = asyncio.Queue()
+                     stop_telemetry = asyncio.Event()
+                     
+                     async def background_telemetry():
+                         """Poll memory in background during model load."""
+                         while not stop_telemetry.is_set():
+                             memory_data, _ = self.memory_monitor.calculate_memory()
+                             await telemetry_queue.put(MemoryEvent(data=memory_data).model_dump())
+                             await asyncio.sleep(0.2)  # 5Hz
+                     
+                     telemetry_task = asyncio.create_task(background_telemetry())
+                     
+                     # Trigger model load and yield telemetry until first response
+                     first_response = True
+                     async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
+                         self.ollama_context, 
+                         current_phase
+                     ):
+                         # Drain telemetry queue while model was loading
+                         while not telemetry_queue.empty():
+                             yield await telemetry_queue.get()
+                         
+                         # Stop background telemetry after first response (model is loaded)
+                         if first_response:
+                             stop_telemetry.set()
+                             await telemetry_task
+                             first_response = False
+                         
+                         # Yield thought event
+                         yield ThoughtEvent(
+                             data=ThoughtData(
+                                 text=thought_text,
+                                 status="ANALYZING",
+                                 timestamp=datetime.utcnow().isoformat() + "Z",
+                                 step_type=ANALYSIS_PHASES[current_phase].get("step_type", "thought"),
+                                 tools=ANALYSIS_PHASES[current_phase].get("tools"),
+                                 related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
+                                 author=ANALYSIS_PHASES[current_phase].get("author")
+                             )
+                         ).model_dump()
+                         
+                         # Yield live performance metrics from Ollama
+                         yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
+                         
+                         # Throttle streaming for readability
+                         await asyncio.sleep(config.THOUGHT_STREAM_DELAY)
+                     
                      self.current_model = target_model
-
-                logger.info(f"Generating LLM thought for phase: {current_phase}")
-                async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
-                    self.ollama_context, 
-                    current_phase
-                ):
-                    # Yield thought event
-                    yield ThoughtEvent(
-                        data=ThoughtData(
-                            text=thought_text,
-                            status="ANALYZING",
-                            timestamp=datetime.utcnow().isoformat() + "Z",
-                            step_type=ANALYSIS_PHASES[current_phase].get("step_type", "thought"),
-                            tools=ANALYSIS_PHASES[current_phase].get("tools"),
-                            related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
-                            author=ANALYSIS_PHASES[current_phase].get("author")
-                        )
-                    ).model_dump()
-                    
-                    # Yield live performance metrics from Ollama
-                    yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
-                    
-                    # Throttle streaming for readability
-                    await asyncio.sleep(config.THOUGHT_STREAM_DELAY)
+                
+                else:
+                    # No model swap, just generate
+                    logger.info(f"Generating LLM thought for phase: {current_phase}")
+                    async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
+                        self.ollama_context, 
+                        current_phase
+                    ):
+                        # Yield thought event
+                        yield ThoughtEvent(
+                            data=ThoughtData(
+                                text=thought_text,
+                                status="ANALYZING",
+                                timestamp=datetime.utcnow().isoformat() + "Z",
+                                step_type=ANALYSIS_PHASES[current_phase].get("step_type", "thought"),
+                                tools=ANALYSIS_PHASES[current_phase].get("tools"),
+                                related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
+                                author=ANALYSIS_PHASES[current_phase].get("author")
+                            )
+                        ).model_dump()
+                        
+                        # Yield live performance metrics from Ollama
+                        yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
+                        
+                        # Throttle streaming for readability
+                        await asyncio.sleep(config.THOUGHT_STREAM_DELAY)
             
             except Exception as e:
                 logger.error(f"Error generating LLM thought: {e}")
