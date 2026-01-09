@@ -42,7 +42,7 @@ const WS_URL = 'ws://localhost:8000/ws/analysis';
 
 export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     // STATE
-    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[0]);
+    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[2]); // CES 2026 is index 2
     const [feed, setFeed] = useState<FeedItem[]>(activeScenario.initialFeed);
     const [worldModel, setWorldModel] = useState<WorldModelItem[]>([]); // Start empty, populate dynamically
     const [metrics, setMetrics] = useState<Metrics>(INITIAL_METRICS);
@@ -212,10 +212,20 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             console.log('WebSocket connected');
 
             // Send simulation parameters
-            // Send simulation parameters
+            // Determine scenario and tier from activeScenario.id
+            let scenario = 'pmm';
+            let tier = 'lite';
+
+            if (activeScenario.id === 'ces2026') {
+                scenario = 'ces2026';
+                tier = 'standard';
+            } else if (activeScenario.id.includes('large')) {
+                tier = 'large';
+            }
+
             const params = {
-                scenario: 'pmm',
-                tier: activeScenario.id.includes('large') ? 'large' : 'lite',
+                scenario,
+                tier,
                 aidaptiv_enabled: systemState.isAidaptivEnabled
             };
 
