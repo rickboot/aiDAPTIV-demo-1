@@ -3,7 +3,7 @@ import type { CompleteEvent, FeedItem, MemoryEvent, PerformanceMetrics, Scenario
 import { SCENARIOS, INITIAL_WORLD_MODEL, INITIAL_METRICS } from './mockData';
 
 interface Metrics {
-    entities_extracted: number;
+    key_topics: number;
     patterns_detected: number;
     insights_generated: number;
     critical_flags: number;
