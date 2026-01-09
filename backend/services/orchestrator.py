@@ -43,6 +43,14 @@ SCENARIOS = {
         total_documents=268,  # 12 competitors + 234 papers + 22 social
         memory_target_gb=19.0,
         crash_threshold_percent=76.0  # Crashes at 76% without aiDAPTIV+
+    ),
+    "ces2026": ScenarioConfig(
+        scenario="ces2026",
+        tier="standard",
+        duration_seconds=90,  # 1.5 minutes for intelligence analysis
+        total_documents=15,   # 2 dossier + 10 news + 2 social + 1 README
+        memory_target_gb=8.0,
+        crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
 }
 

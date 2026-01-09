@@ -6,6 +6,11 @@ const PMM_INITIAL_FEED: FeedItem[] = [
     { id: 'p-0', source: 'AI_Agent', author: '@AI_Agent', content: 'Monitoring active data pipelines for Q1 2026...', timestamp: '2h ago', badge: 'WAITING' },
 ];
 
+// SCENARIO 2: CES 2026 Supply Chain Monitor (Phison-specific)
+const CES2026_INITIAL_FEED: FeedItem[] = [
+    { id: 'ces-0', source: 'AI_Agent', author: '@Phison_Intel', content: 'CES 2026 monitoring active. Scanning for DRAM, NAND, OEM, and competitive signals...', timestamp: '1h ago', badge: 'WAITING' },
+];
+
 export const SCENARIOS: Scenario[] = [
     {
         id: 'pmm_lite',
@@ -20,6 +25,13 @@ export const SCENARIOS: Scenario[] = [
         subtitle: '268 Documents - Workstation Load',
         description: 'Competitor Analysis (Large)',
         initialFeed: PMM_INITIAL_FEED
+    },
+    {
+        id: 'ces2026',
+        title: 'CES 2026 Supply Chain Monitor',
+        subtitle: '15 Intelligence Sources - Phison Context',
+        description: 'Strategic Intelligence for aiDAPTIV+ (CES 2026)',
+        initialFeed: CES2026_INITIAL_FEED
     }
 ];
 

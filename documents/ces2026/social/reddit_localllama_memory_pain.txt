@@ -1,0 +1,88 @@
+r/LocalLLaMA - "24GB is NOT enough anymore - here's my pain"
+Posted by u/AIEnthusiast2026 | 847 upvotes | 312 comments
+
+Title says it all. I've been running local LLMs on my RTX 4090 (24GB) for the past year and I'm hitting walls constantly now.
+
+WHAT CHANGED:
+
+December 2024: Could run Llama 2 70B quantized (Q4) comfortably
+January 2026: Llama 3.1 70B barely fits, Qwen 2.5 72B OOMs constantly
+
+The problem isn't just model size - it's CONTEXT LENGTH. Everyone's pushing for longer contexts now:
+- Gemma 2 27B: 128K context (my 4090 can't handle it)
+- Mistral Large: 128K context (forget about it)
+- Even Llama 3.1 8B with full 128K context uses 18GB+ VRAM
+
+KV CACHE IS EATING MY LUNCH:
+
+For those who don't know: the KV cache grows QUADRATICALLY with context length. Double your context = 4x the VRAM for cache.
+
+My actual numbers running Llama 3.1 70B Q4:
+- 8K context: 22GB VRAM (fits!)
+- 32K context: OOM crash
+- 128K context: not even close
+
+WORKAROUNDS I'VE TRIED:
+
+1. Offloading to RAM: Works but SLOW. Like 2-3 tokens/sec instead of 25 t/s
+2. Quantizing KV cache (Q8_0): Saves maybe 15% VRAM, quality hit noticeable
+3. Flash Attention: Helps a bit but doesn't solve the fundamental problem
+4. Smaller models: Defeats the purpose, quality suffers
+
+THE REAL ISSUE:
+
+Cloud AI is gobbling up all the HBM production. Good luck finding an RTX 5090 (rumored 32GB) at MSRP when it launches. Scalpers gonna scalp.
+
+Meanwhile NVIDIA is selling H100s with 80GB HBM to datacenters for $30K each. They don't care about us.
+
+WHAT I ACTUALLY NEED:
+
+- 48GB VRAM minimum for serious local LLM work
+- Or some way to offload KV cache to fast storage without killing performance
+- Or just cheaper RAM/VRAM (lol not happening in 2026)
+
+Anyone else hitting these limits? What are you doing about it?
+
+---
+
+TOP COMMENTS:
+
+u/VRAMStruggler (+203):
+Same boat. I'm seriously considering just paying for Claude API at this point. My electricity bill + hardware depreciation is approaching cloud costs anyway.
+
+u/QuantizationKing (+187):
+Have you tried the new Adaptive-Quant? Claims 75% memory reduction. I'm skeptical but might be worth a shot.
+
+u/SSDOffloadExperiment (+156):
+I've been experimenting with offloading KV cache to a Gen5 NVMe SSD. It's not as slow as RAM offload (getting 8-10 t/s on 70B models). The trick is using a high-endurance drive and optimizing the cache eviction policy.
+
+Check out this project: github.com/kvcache-ssd (not my repo)
+
+u/AIEnthusiast2026 (OP):
+@SSDOffloadExperiment - Interesting! What SSD are you using? I have a Samsung 990 Pro but haven't tried this approach.
+
+u/SSDOffloadExperiment:
+Phison E26-based drive (Corsair MP700). Sequential read is 12GB/s which helps. Still experimenting but it's way better than system RAM offload.
+
+u/CloudSkeptic (+134):
+This is exactly why I'm bullish on edge AI solutions. The cloud-first narrative ignores:
+- Privacy (can't send medical/legal data to OpenAI)
+- Latency (real-time apps need local inference)  
+- Cost (API bills add up FAST for production use)
+
+But we need better local memory solutions. Current hardware isn't cutting it.
+
+u/HardwareRealist (+98):
+The memory wall is real. Jensen Huang literally said "memory shortages will persist through 2026" at CES yesterday. 
+
+We're in a supercycle where AI demand > memory supply. Prices aren't coming down anytime soon.
+
+u/PragmaticDev (+76):
+Unpopular opinion: Most people don't need to run 70B models locally. A well-tuned 13B model handles 90% of use cases.
+
+u/AIEnthusiast2026 (OP):
+@PragmaticDev - Fair point for general use, but I'm doing domain-specific fine-tuning. 70B models are significantly better for my use case (legal document analysis). Quality matters.
+
+---
+
+[Continued discussion: 312 comments total]
