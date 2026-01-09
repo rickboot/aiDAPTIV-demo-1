@@ -457,33 +457,40 @@ class SimulationOrchestrator:
         
         # Calculate incremental values
         if tier == "lite":
-            visual_target = 151
-            papers_target = 12
-            signals_target = 2
+            entities_target = 150
+            patterns_target = 45
+            insights_target = 12
+            flags_target = 3
         else:
-            visual_target = 974
-            papers_target = 252
-            signals_target = 5
+            entities_target = 2500
+            patterns_target = 800
+            insights_target = 300
+            flags_target = 25
         
         # Increment metrics proportionally
-        visual_current = int(24 + (visual_target - 24) * (progress_percent / 100))
-        papers_current = int(self.metrics["papers_analyzed"] + (papers_target - self.metrics["papers_analyzed"]) * (progress_percent / 100))
+        entities_current = int(entities_target * (progress_percent / 100))
+        patterns_current = int(patterns_target * (progress_percent / 100))
+        insights_current = int(insights_target * (progress_percent / 100))
         
-        # Signals jump at 80%
-        signals_current = signals_target if progress_percent >= 80 else self.metrics["signals_detected"]
+        # Flags jump at 80%
+        flags_current = flags_target if progress_percent >= 80 else int(flags_target * 0.2)
         
         # Update and create events
-        if visual_current != self.metrics["visual_updates"]:
-            self.metrics["visual_updates"] = visual_current
-            events.append(MetricEvent(data=MetricData(name="visual_updates", value=visual_current)))
+        if entities_current != self.metrics.get("entities_extracted", 0):
+            self.metrics["entities_extracted"] = entities_current
+            events.append(MetricEvent(data=MetricData(name="entities_extracted", value=entities_current)))
+
+        if patterns_current != self.metrics.get("patterns_detected", 0):
+            self.metrics["patterns_detected"] = patterns_current
+            events.append(MetricEvent(data=MetricData(name="patterns_detected", value=patterns_current)))
         
-        if papers_current != self.metrics["papers_analyzed"]:
-            self.metrics["papers_analyzed"] = papers_current
-            events.append(MetricEvent(data=MetricData(name="papers_analyzed", value=papers_current)))
+        if insights_current != self.metrics.get("insights_generated", 0):
+            self.metrics["insights_generated"] = insights_current
+            events.append(MetricEvent(data=MetricData(name="insights_generated", value=insights_current)))
         
-        if signals_current != self.metrics["signals_detected"]:
-            self.metrics["signals_detected"] = signals_current
-            events.append(MetricEvent(data=MetricData(name="signals_detected", value=signals_current)))
+        if flags_current != self.metrics.get("critical_flags", 0):
+            self.metrics["critical_flags"] = flags_current
+            events.append(MetricEvent(data=MetricData(name="critical_flags", value=flags_current)))
         
         return events
     
