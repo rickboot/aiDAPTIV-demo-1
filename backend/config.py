@@ -28,7 +28,7 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 # ═══════════════════════════════════════════════════════════════
 
 # Streaming throttle (seconds between thought chunks)
-THOUGHT_STREAM_DELAY = 0.05  # 50ms for readable streaming
+THOUGHT_STREAM_DELAY = 0.0  # No delay for dev (set to 0.05 for demo readability)
 
 # Maximum context size (tokens)
 MAX_CONTEXT_TOKENS = 8000  # Leave room for response
