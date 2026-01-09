@@ -100,7 +100,7 @@ class DocumentEvent(BaseModel):
 
 class MetricData(BaseModel):
     """Metric update data."""
-    name: Literal["entities_extracted", "patterns_detected", "insights_generated", "critical_flags"]
+    name: Literal["key_topics", "patterns_detected", "insights_generated", "critical_flags"]
     value: int = Field(..., ge=0)
 
 
