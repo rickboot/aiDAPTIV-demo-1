@@ -48,8 +48,8 @@ SCENARIOS = {
         scenario="ces2026",
         tier="standard",
         duration_seconds=120,  # 2 minutes for intelligence analysis (includes video transcripts)
-        total_documents=18,   # 2 dossier + 10 news + 2 social + 3 video + 1 README
-        memory_target_gb=12.0,  # Higher target due to video transcripts
+        total_documents=21,   # 5 dossier + 10 news + 2 social + 3 video + 1 README
+        memory_target_gb=14.0,  # Higher target due to video transcripts + dossiers
         crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
 }
