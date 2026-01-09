@@ -87,8 +87,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         if (found) {
             setActiveScenarioState(found);
 
+            // Derive tier
+            const newTier = found.id.includes('large') ? 'large' : 'lite';
+            setTierState(newTier);
+
             // Auto-enable aiDAPTIV+ for Large scenarios so demo succeeds by default
-            if (found.id.includes('large')) {
+            if (newTier === 'large') {
                 setSystemState(prev => ({ ...prev, isAidaptivEnabled: true }));
             }
 
