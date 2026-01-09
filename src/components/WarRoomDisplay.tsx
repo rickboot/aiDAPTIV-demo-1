@@ -285,14 +285,7 @@ export const WarRoomDisplay = () => {
         }
     }, [worldModel, isAnalysisRunning, dataFilter]);
 
-    // Auto-scroll effect for Reasoning Chain
-    React.useEffect(() => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'auto' });
-        }
-        // DEBUG LOG
-        console.log('Current Feed:', feed);
-    }, [feed]);
+
 
     return (
         <div className="flex h-screen bg-dashboard-bg font-sans overflow-hidden relative">

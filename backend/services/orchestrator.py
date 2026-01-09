@@ -387,30 +387,35 @@ class SimulationOrchestrator:
             # 1. README (Core Instructions) - Load FIRST
             readme = ces_dir / "README.md"
             if readme.exists():
+                content = readme.read_text(encoding='utf-8')
                 size_kb = readme.stat().st_size / 1024
-                docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1)})
+                docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
             
             # 2. Dossier files (Strategic Context) - Load SECOND
             for file in sorted((ces_dir / "dossier").glob("*.txt")):
+                content = file.read_text(encoding='utf-8')
                 size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1)})
+                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1), "content": content})
             
             # 3. News files
             for file in sorted((ces_dir / "news").glob("*.txt")):
+                content = file.read_text(encoding='utf-8')
                 size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1)})
+                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1), "content": content})
             
             # 4. Social files
             for file in sorted((ces_dir / "social").glob("*.txt")):
+                content = file.read_text(encoding='utf-8')
                 size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1)})
+                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
             
             # 5. Video transcripts
             video_dir = ces_dir / "video"
             if video_dir.exists():
                 for file in sorted(video_dir.glob("*.txt")):
+                    content = file.read_text(encoding='utf-8')
                     size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1)})
+                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1), "content": content})
                 
         elif tier == "lite":
             # 3 competitors + 10 papers + 5 social
@@ -556,12 +561,12 @@ class SimulationOrchestrator:
             except Exception as e:
                 logger.error(f"Error generating LLM thought: {e}")
                 # Fall back to canned response
-                canned_thought = self._check_and_create_thought(progress_percent)
+                canned_thought = await self._check_and_create_thought(progress_percent)
                 if canned_thought:
                     yield canned_thought.model_dump()
         else:
             # Use canned response
-            canned_thought = self._check_and_create_thought(progress_percent)
+            canned_thought = await self._check_and_create_thought(progress_percent)
             if canned_thought:
                 yield canned_thought.model_dump()
     
