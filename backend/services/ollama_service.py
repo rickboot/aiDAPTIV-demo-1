@@ -75,6 +75,61 @@ ANALYSIS_PHASES = {
     }
 }
 
+ANALYSIS_PHASES_CES = {
+    "phase_1_review": {
+        "name": "Intelligence Briefing",
+        "prompt": "Review the provided competitive dossiers (Samsung, Silicon Motion, Kioxia) and CES news. Summarize the key competitive threats identified in these documents.",
+        "trigger_percent": 5,
+        "step_type": "plan",
+        "tools": ["dossier_analysis"],
+        "related_doc_ids": ["samsung_competitive_dossier", "silicon_motion_dossier"],
+        "author": "@Orchestrator",
+        "system_prompt": "You are the Intelligence Orchestrator. Summarize the strategic landscape based on the dossiers. Be concise and threat-focused.",
+        "model": "llama3.1:8b"
+    },
+    "phase_2_patterns": {
+        "name": "Threat Vector Analysis",
+        "prompt": "Analyze the technical specifications in the news (Intel, AMD, Samsung PM9E1). How do these hardware announcements impact the 'AI PC' memory bottleneck? Is there a pattern of on-device memory limitation?",
+        "trigger_percent": 15,
+        "step_type": "thought",
+        "related_doc_ids": ["intel_core_ultra", "amd_ryzen_ai"],
+        "author": "@Hardware_Analyst",
+        "system_prompt": "You are a Hardware Architect. Analyze the specs. Look for memory constraints that validate our swappable model thesis.",
+        "model": "qwen2.5:14b"
+    },
+    "phase_3_technical": {
+        "name": "Video Signal Correlation",
+        "prompt": "Correlate the video transcripts (NVIDIA Keynote, Linus Tech Tips) with the hardware trends. Are industry leaders (Jensen Huang, Linus) explicitly talking about the memory wall or model size constraints?",
+        "trigger_percent": 50,
+        "step_type": "action",
+        "tools": ["video_transcript_analyzer"],
+        "related_doc_ids": ["nvidia_keynote", "linus_review"],
+        "author": "@Media_Analyst",
+        "system_prompt": "You are a Media Analyst. Extract key quotes and sentiment from the video transcripts that support the memory bottleneck thesis.",
+        "model": "qwen2.5:14b"
+    },
+    "phase_4_social": {
+        "name": "User Sentiment Validation",
+        "prompt": "Check the Reddit and Twitter discussions. Are real users complaining about VRAM limitations? Does the social sentiment align with the hardware constraints we identified?",
+        "trigger_percent": 70,
+        "step_type": "observation",
+        "related_doc_ids": ["reddit_localllama", "karpathy_tweet"],
+        "author": "@Social_Researcher",
+        "system_prompt": "You are a User Researcher. Validate technical findings with real user pain points from social media.",
+        "model": "llama3.1:8b"
+    },
+    "phase_5_synthesis": {
+        "name": "Strategic Recommendation",
+        "prompt": "Synthesize all findings (Dossiers + Hardware Specs + Video Signals + User Pain). Does the evidence support an accelerated roadmap for Phison aidAPTIV+? Provide a decisive recommendation.",
+        "trigger_percent": 90,
+        "step_type": "thought",
+        "tools": ["strategy_engine"],
+        "author": "@Lead_Strategist",
+        "system_prompt": "You are the Chief Strategy Officer. Synthesize all intelligence into a final go/no-go recommendation for the product roadmap.",
+        "model": "llama3.1:8b"
+    }
+}
+
 
 # ═══════════════════════════════════════════════════════════════
 # OLLAMA CLIENT
@@ -378,9 +433,13 @@ class OllamaService:
         system_prompt = phase.get("system_prompt", """You are an AI analyst for competitive intelligence. 
 Provide concise, specific insights based on the analysis phase.""")
         
-        user_prompt = f"""{phase['prompt']}
+        user_prompt = f"""CONTEXT DATA:
+{context}
 
-Provide a brief 1-2 sentence insight for this phase of analysis."""
+ANALYSIS TASK:
+{phase['prompt']}
+
+Provide a brief 1-2 sentence insight for this phase of analysis based strictly on the provided context."""
         
         try:
             import time

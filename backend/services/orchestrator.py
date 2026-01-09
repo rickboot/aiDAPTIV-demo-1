@@ -17,7 +17,7 @@ from models.schemas import (
 )
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
-from services.ollama_service import OllamaService, ANALYSIS_PHASES
+from services.ollama_service import OllamaService, ANALYSIS_PHASES, ANALYSIS_PHASES_CES
 import config
 
 logger = logging.getLogger(__name__)
@@ -473,9 +473,12 @@ class SimulationOrchestrator:
         Yields:
             ThoughtEvent objects with LLM-generated reasoning
         """
+        # Select phases based on scenario
+        phases = ANALYSIS_PHASES_CES if self.config.scenario == "ces2026" else ANALYSIS_PHASES
+        
         # Find which phase we're in
         current_phase = None
-        for phase_key, phase_data in ANALYSIS_PHASES.items():
+        for phase_key, phase_data in phases.items():
             trigger = phase_data["trigger_percent"]
             if progress_percent >= trigger and phase_key not in self.thoughts_sent:
                 current_phase = phase_key
@@ -489,7 +492,8 @@ class SimulationOrchestrator:
         if self.use_ollama and self.ollama_service and self.ollama_context:
             try:
                 # Check for model swap
-                target_model = ANALYSIS_PHASES[current_phase].get("model", "llama3.1:8b")
+                val_phase = phases[current_phase] # Use the selected phases dict
+                target_model = val_phase.get("model", "llama3.1:8b")
                 if target_model != self.current_model:
                      yield StatusEvent(message=f"Offloading Model: {self.current_model}...").model_dump()
                      await asyncio.sleep(2.0)  # Pause for offload
@@ -504,7 +508,8 @@ class SimulationOrchestrator:
                 logger.info(f"Generating LLM thought for phase: {current_phase}")
                 async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
                     self.ollama_context, 
-                    current_phase
+                    current_phase,
+                    scenario=self.config.scenario # Pass scenario to service
                 ):
                     # Yield thought event
                     yield ThoughtEvent(
@@ -512,10 +517,10 @@ class SimulationOrchestrator:
                             text=thought_text,
                             status="ANALYZING",
                             timestamp=datetime.utcnow().isoformat() + "Z",
-                            step_type=ANALYSIS_PHASES[current_phase].get("step_type", "thought"),
-                            tools=ANALYSIS_PHASES[current_phase].get("tools"),
-                            related_doc_ids=ANALYSIS_PHASES[current_phase].get("related_doc_ids"),
-                            author=ANALYSIS_PHASES[current_phase].get("author")
+                            step_type=val_phase.get("step_type", "thought"),
+                            tools=val_phase.get("tools"),
+                            related_doc_ids=val_phase.get("related_doc_ids"),
+                            author=val_phase.get("author")
                         )
                     ).model_dump()
                     
