@@ -283,12 +283,26 @@ class SimulationOrchestrator:
         }
         
         for doc_index in range(total_docs):
+            current_doc = documents[doc_index]
+            prev_doc = documents[doc_index - 1] if doc_index > 0 else None
+            
+            # Dynamic Processing Status based on category change
+            if doc_index == 0:
+                 yield {"type": "status", "message": "Loading Strategic Dossiers..."}
+            elif prev_doc and current_doc['category'] != prev_doc['category']:
+                if current_doc['category'] == 'news':
+                    yield {"type": "status", "message": "Ingesting CES News Feed..."}
+                elif current_doc['category'] == 'social':
+                    yield {"type": "status", "message": "Monitoring Social Channels..."}
+                elif current_doc['category'] == 'video':
+                    yield {"type": "status", "message": "Processing Video Transcripts..."}
+            
             # Calculate current progress
             progress_percent = ((doc_index + 1) / total_docs) * 100
             self.current_progress = progress_percent
             
             # 1. SEND DOCUMENT EVENT
-            doc_event = self._create_document_event(documents[doc_index], doc_index, total_docs)
+            doc_event = self._create_document_event(current_doc, doc_index, total_docs)
             yield doc_event.model_dump()
             
             # 2. SEND MEMORY EVENT
