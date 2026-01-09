@@ -230,8 +230,8 @@ const SuccessOverlay = ({ onClose }: { onClose: () => void }) => {
 
                         <div className="space-y-4 mb-8">
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Entities Extracted</span>
-                                <span className="font-mono font-bold text-white">{metrics.entities_extracted}</span>
+                                <span className="text-sm text-text-secondary">Key Topics</span>
+                                <span className="font-mono font-bold text-white">{metrics.key_topics}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
                                 <span className="text-sm text-text-secondary">Patterns Detected</span>
@@ -376,7 +376,7 @@ export const WarRoomDisplay = () => {
 
                     {/* DYNAMIC WIDGETS ROW - Compact */}
                     <div className="grid grid-cols-4 gap-4">
-                        <StatCard title="ENTITIES EXTRACTED" value={metrics.entities_extracted} trend="Active" color="neutral" icon="🧩" />
+                        <StatCard title="KEY TOPICS" value={metrics.key_topics} trend="Active" color="neutral" icon="🧩" />
                         <StatCard title="PATTERNS DETECTED" value={metrics.patterns_detected} trend="Rising" color="cyan" icon="🔍" />
                         <StatCard title="INSIGHTS GENERATED" value={metrics.insights_generated} trend="New findings" color="emerald" icon="💡" />
                         <StatCard title="CRITICAL FLAGS" value={metrics.critical_flags} trend={metrics.critical_flags > 0 ? "Issues found" : "Clean"} color="amber" icon="⚠️" />
