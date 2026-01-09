@@ -121,11 +121,12 @@ class SimulationOrchestrator:
         self.memory_monitor = MemoryMonitor(self.config, aidaptiv_enabled)
         
         # Metrics tracking
+        # Metrics tracking
         self.metrics = {
-            "competitors_tracked": 3 if tier == "lite" else 12,
-            "visual_updates": 24 if tier == "lite" else 847,
-            "papers_analyzed": 10 if tier == "lite" else 234,
-            "signals_detected": 1 if tier == "lite" else 3
+            "entities_extracted": 0,
+            "patterns_detected": 0,
+            "insights_generated": 0,
+            "critical_flags": 0
         }
         
         # Thought phase tracking
