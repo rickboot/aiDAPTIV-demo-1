@@ -412,7 +412,8 @@ class OllamaService:
     async def generate_reasoning(
         self, 
         context: str, 
-        phase_key: str
+        phase_key: str,
+        scenario: str = "pmm"
     ) -> AsyncGenerator[tuple[str, dict], None]:
         """
         Generate LLM reasoning for a specific analysis phase with performance tracking.
@@ -420,13 +421,15 @@ class OllamaService:
         Args:
             context: Full document context
             phase_key: Phase identifier (e.g., "phase_1_review")
+            scenario: Current scenario ID
         
         Yields:
             Tuple of (thought_text, performance_metrics)
         """
-        phase = ANALYSIS_PHASES.get(phase_key)
+        phases = ANALYSIS_PHASES_CES if scenario == "ces2026" else ANALYSIS_PHASES
+        phase = phases.get(phase_key)
         if not phase:
-            logger.error(f"Unknown phase: {phase_key}")
+            logger.error(f"Unknown phase: {phase_key} for scenario {scenario}")
             return
         
         # Build simplified prompt - don't send full context to reduce processing time
