@@ -44,7 +44,7 @@ SCENARIOS = {
         memory_target_gb=19.0,
         crash_threshold_percent=76.0  # Crashes at 76% without aiDAPTIV+
     ),
-    "ces2026": ScenarioConfig(
+    "ces2026_standard": ScenarioConfig(
         scenario="ces2026",
         tier="standard",
         duration_seconds=90,  # 1.5 minutes for intelligence analysis
