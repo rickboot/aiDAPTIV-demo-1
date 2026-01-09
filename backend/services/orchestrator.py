@@ -123,7 +123,7 @@ class SimulationOrchestrator:
         # Metrics tracking
         # Metrics tracking
         self.metrics = {
-            "entities_extracted": 0,
+            "key_topics": 0,
             "patterns_detected": 0,
             "insights_generated": 0,
             "critical_flags": 0
@@ -457,18 +457,18 @@ class SimulationOrchestrator:
         
         # Calculate incremental values
         if tier == "lite":
-            entities_target = 150
+            topics_target = 150
             patterns_target = 45
             insights_target = 12
             flags_target = 3
         else:
-            entities_target = 2500
+            topics_target = 2500
             patterns_target = 800
             insights_target = 300
             flags_target = 25
         
         # Increment metrics proportionally
-        entities_current = int(entities_target * (progress_percent / 100))
+        topics_current = int(topics_target * (progress_percent / 100))
         patterns_current = int(patterns_target * (progress_percent / 100))
         insights_current = int(insights_target * (progress_percent / 100))
         
@@ -476,9 +476,9 @@ class SimulationOrchestrator:
         flags_current = flags_target if progress_percent >= 80 else int(flags_target * 0.2)
         
         # Update and create events
-        if entities_current != self.metrics.get("entities_extracted", 0):
-            self.metrics["entities_extracted"] = entities_current
-            events.append(MetricEvent(data=MetricData(name="entities_extracted", value=entities_current)))
+        if topics_current != self.metrics.get("key_topics", 0):
+            self.metrics["key_topics"] = topics_current
+            events.append(MetricEvent(data=MetricData(name="key_topics", value=topics_current)))
 
         if patterns_current != self.metrics.get("patterns_detected", 0):
             self.metrics["patterns_detected"] = patterns_current
