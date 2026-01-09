@@ -6,7 +6,7 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
-    const { tier, setTier, isAnalysisRunning, toggleAidaptiv, systemState } = useScenario();
+    const { isAnalysisRunning, toggleAidaptiv, systemState } = useScenario();
 
     if (!isOpen) return null;
 
@@ -29,68 +29,6 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
                 {/* Content */}
                 <div className="space-y-6">
-
-                    {/* Simulation Tier */}
-                    <div>
-                        <label className="block text-sm font-bold text-text-secondary uppercase tracking-widest mb-3">
-                            Simulation Tier
-                        </label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => setTier('lite')}
-                                disabled={isAnalysisRunning}
-                                className={`p-4 rounded-xl border-2 transition-all ${tier === 'lite'
-                                    ? 'border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20'
-                                    : 'border-dashboard-border hover:border-blue-500/50 bg-dashboard-card'
-                                    } ${isAnalysisRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            >
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${tier === 'lite' ? 'border-blue-500 bg-blue-500' : 'border-text-secondary'
-                                        }`}>
-                                        {tier === 'lite' && (
-                                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                                        )}
-                                    </div>
-                                    <span className={`font-bold ${tier === 'lite' ? 'text-white' : 'text-text-primary'}`}>
-                                        Lite
-                                    </span>
-                                </div>
-                                <div className="text-xs text-text-secondary space-y-1 text-left">
-                                    <div>• 18 documents</div>
-                                    <div>• 15 seconds</div>
-                                    <div>• 10GB memory</div>
-                                    <div className="text-emerald-400 font-semibold">✓ Always succeeds</div>
-                                </div>
-                            </button>
-
-                            <button
-                                onClick={() => setTier('large')}
-                                disabled={isAnalysisRunning}
-                                className={`p-4 rounded-xl border-2 transition-all ${tier === 'large'
-                                    ? 'border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/20'
-                                    : 'border-dashboard-border hover:border-blue-500/50 bg-dashboard-card'
-                                    } ${isAnalysisRunning ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            >
-                                <div className="flex items-center gap-3 mb-2">
-                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${tier === 'large' ? 'border-blue-500 bg-blue-500' : 'border-text-secondary'
-                                        }`}>
-                                        {tier === 'large' && (
-                                            <div className="w-2 h-2 rounded-full bg-white"></div>
-                                        )}
-                                    </div>
-                                    <span className={`font-bold ${tier === 'large' ? 'text-white' : 'text-text-primary'}`}>
-                                        Large
-                                    </span>
-                                </div>
-                                <div className="text-xs text-text-secondary space-y-1 text-left">
-                                    <div>• 268 documents</div>
-                                    <div>• 30 seconds</div>
-                                    <div>• 19GB memory</div>
-                                    <div className="text-amber-400 font-semibold">⚠️ Requires aiDAPTIV+</div>
-                                </div>
-                            </button>
-                        </div>
-                    </div>
 
                     {/* aiDAPTIV+ Toggle */}
                     <div>
@@ -130,21 +68,6 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 </span>
                             )}
                         </button>
-                    </div>
-
-                    {/* Info Box */}
-                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-                        <div className="flex gap-3">
-                            <svg className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <div className="text-sm text-blue-200">
-                                <div className="font-semibold mb-1">Tier Selection</div>
-                                <div className="text-blue-300/80">
-                                    Choose <strong>Lite</strong> for quick demos. Choose <strong>Large</strong> to showcase aiDAPTIV+ preventing out-of-memory crashes with SSD offload.
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Locked During Simulation */}
