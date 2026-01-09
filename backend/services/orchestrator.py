@@ -281,7 +281,8 @@ class SimulationOrchestrator:
             
             # Simulate context growth: each document adds to cumulative context
             # In real agentic systems, documents stay in context for future agents
-            doc_tokens = 30  # ~30 tokens per document (small increment)
+            # Increase to 200 tokens per doc for dramatic growth (lite: 4.5K→8K, large: 8K→60K)
+            doc_tokens = 200  # Aggressive growth to show KV cache pressure
             current_tokens = self.memory_monitor.context_tokens
             self.memory_monitor.set_context_size(current_tokens + doc_tokens)
             
