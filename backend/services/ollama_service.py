@@ -79,7 +79,7 @@ ANALYSIS_PHASES_CES = {
     "phase_1_review": {
         "name": "Intelligence Briefing",
         "prompt": "Review the provided competitive dossiers (Samsung, Silicon Motion, Kioxia) and CES news. Summarize the key competitive threats identified in these documents.",
-        "trigger_percent": 5,
+        "trigger_percent": 30,  # Start after Core Data (Dossiers + README) is loaded
         "step_type": "plan",
         "tools": ["dossier_analysis"],
         "related_doc_ids": ["samsung_competitive_dossier", "silicon_motion_dossier"],
@@ -90,7 +90,7 @@ ANALYSIS_PHASES_CES = {
     "phase_2_patterns": {
         "name": "Threat Vector Analysis",
         "prompt": "Analyze the technical specifications in the news (Intel, AMD, Samsung PM9E1). How do these hardware announcements impact the 'AI PC' memory bottleneck? Is there a pattern of on-device memory limitation?",
-        "trigger_percent": 15,
+        "trigger_percent": 50,  # Start mid-way through News loading
         "step_type": "thought",
         "related_doc_ids": ["intel_core_ultra", "amd_ryzen_ai"],
         "author": "@Hardware_Analyst",
@@ -100,7 +100,7 @@ ANALYSIS_PHASES_CES = {
     "phase_3_technical": {
         "name": "Video Signal Correlation",
         "prompt": "Correlate the video transcripts (NVIDIA Keynote, Linus Tech Tips) with the hardware trends. Are industry leaders (Jensen Huang, Linus) explicitly talking about the memory wall or model size constraints?",
-        "trigger_percent": 50,
+        "trigger_percent": 85,  # Start after News/Social, as Video begins
         "step_type": "action",
         "tools": ["video_transcript_analyzer"],
         "related_doc_ids": ["nvidia_keynote", "linus_review"],
@@ -111,7 +111,7 @@ ANALYSIS_PHASES_CES = {
     "phase_4_social": {
         "name": "User Sentiment Validation",
         "prompt": "Check the Reddit and Twitter discussions. Are real users complaining about VRAM limitations? Does the social sentiment align with the hardware constraints we identified?",
-        "trigger_percent": 70,
+        "trigger_percent": 90,  # Parallel with Video analysis
         "step_type": "observation",
         "related_doc_ids": ["reddit_localllama", "karpathy_tweet"],
         "author": "@Social_Researcher",
@@ -121,7 +121,7 @@ ANALYSIS_PHASES_CES = {
     "phase_5_synthesis": {
         "name": "Strategic Recommendation",
         "prompt": "Synthesize all findings (Dossiers + Hardware Specs + Video Signals + User Pain). Does the evidence support an accelerated roadmap for Phison aidAPTIV+? Provide a decisive recommendation.",
-        "trigger_percent": 90,
+        "trigger_percent": 95,  # Final synthesis at end
         "step_type": "thought",
         "tools": ["strategy_engine"],
         "author": "@Lead_Strategist",
