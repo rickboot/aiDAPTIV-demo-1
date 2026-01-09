@@ -317,11 +317,26 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                     const newModel = [...prev];
                     const index = message.data.index;
 
+                    // Map category to display type
+                    const getFileType = (category: string) => {
+                        switch (category) {
+                            case 'competitor': return 'screenshot';
+                            case 'paper': return 'pdf_embedding';
+                            case 'video': return 'video_transcript';
+                            case 'dossier':
+                            case 'news':
+                            case 'social':
+                            case 'documentation':
+                                return 'text_document';
+                            default: return 'text_document';
+                        }
+                    };
+
                     // Create entry if it doesn't exist (dynamic sizing)
                     if (!newModel[index]) {
                         newModel[index] = {
                             id: `doc-${index}`,
-                            type: message.data.category === 'competitor' ? 'screenshot' : 'pdf_embedding',
+                            type: getFileType(message.data.category),
                             title: message.data.name,
                             memorySize: message.data.size_kb || 50, // Use actual size from backend
                             lastAccessed: Date.now(),
@@ -332,7 +347,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                         newModel[index] = {
                             ...newModel[index],
                             title: message.data.name,
-                            type: message.data.category === 'competitor' ? 'screenshot' : 'pdf_embedding',
+                            type: getFileType(message.data.category),
                             memorySize: message.data.size_kb || 50,
                             status: 'vram',
                             lastAccessed: Date.now()

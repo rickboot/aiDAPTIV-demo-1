@@ -21,7 +21,7 @@ export type WorldModelStatus = 'vram' | 'ssd_cache' | 'pending';
 
 export interface WorldModelItem {
     id: string;
-    type: 'screenshot' | 'pdf_embedding' | 'code';
+    type: 'screenshot' | 'pdf_embedding' | 'code' | 'text_document' | 'video_transcript';
     title: string;
     memorySize: number; // in MB
     lastAccessed: number;
