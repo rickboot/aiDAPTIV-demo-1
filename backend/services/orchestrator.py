@@ -282,8 +282,13 @@ class SimulationOrchestrator:
             }
         }
         
+        # Track processed documents for dynamic context
+        self.processed_documents = []
+        
         for doc_index in range(total_docs):
             current_doc = documents[doc_index]
+            self.processed_documents.append(current_doc) # Add to timeline
+            
             prev_doc = documents[doc_index - 1] if doc_index > 0 else None
             
             # Dynamic Processing Status based on category change
@@ -503,8 +508,12 @@ class SimulationOrchestrator:
             return  # No phase to process
         
         # Use Ollama if available
-        if self.use_ollama and self.ollama_service and self.ollama_context:
+        if self.use_ollama and self.ollama_service:
             try:
+                # Build context DYNAMICALLY from processed documents only
+                # This ensures the LLM can only "see" what has actually arrived in the simulation
+                dynamic_context = self.ollama_service.build_context(self.processed_documents)
+                
                 # Check for model swap
                 val_phase = phases[current_phase] # Use the selected phases dict
                 target_model = val_phase.get("model", "llama3.1:8b")
@@ -519,9 +528,9 @@ class SimulationOrchestrator:
                      # Update memory monitor with new model size
                      self.memory_monitor.set_model_size(target_model)
 
-                logger.info(f"Generating LLM thought for phase: {current_phase}")
+                logger.info(f"Generating LLM thought for phase: {current_phase} with dynamic context")
                 async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
-                    self.ollama_context, 
+                    dynamic_context, 
                     current_phase,
                     scenario=self.config.scenario # Pass scenario to service
                 ):
