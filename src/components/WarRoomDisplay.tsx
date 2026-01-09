@@ -376,10 +376,10 @@ export const WarRoomDisplay = () => {
 
                     {/* DYNAMIC WIDGETS ROW - Compact */}
                     <div className="grid grid-cols-4 gap-4">
-                        <StatCard title="COMPETITORS TRACKED" value={metrics.competitors} trend="Active" color="neutral" icon="🎯" />
-                        <StatCard title="VISUAL UPDATES" value={metrics.visuals} trend="+127 today" color="cyan" icon="📸" />
-                        <StatCard title="PAPERS ANALYZED" value={metrics.papers} trend="+18 new" color="emerald" icon="📄" />
-                        <StatCard title="SIGNALS DETECTED" value={metrics.signals} trend={metrics.signals > 0 ? "Pivots found" : "Monitoring..."} color="amber" icon="⚠️" />
+                        <StatCard title="ENTITIES EXTRACTED" value={metrics.entities_extracted} trend="Active" color="neutral" icon="🧩" />
+                        <StatCard title="PATTERNS DETECTED" value={metrics.patterns_detected} trend="Rising" color="cyan" icon="🔍" />
+                        <StatCard title="INSIGHTS GENERATED" value={metrics.insights_generated} trend="New findings" color="emerald" icon="💡" />
+                        <StatCard title="CRITICAL FLAGS" value={metrics.critical_flags} trend={metrics.critical_flags > 0 ? "Issues found" : "Clean"} color="amber" icon="⚠️" />
                     </div>
 
                     <div className="grid grid-cols-12 gap-6 flex-1 min-h-0">
