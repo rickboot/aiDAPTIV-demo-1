@@ -326,26 +326,31 @@ class SimulationOrchestrator:
             
             # Dossier files (strategic context)
             for file in (ces_dir / "dossier").glob("*.txt"):
-                docs.append({"name": file.name, "category": "dossier"})
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1)})
             
             # News files
             for file in (ces_dir / "news").glob("*.txt"):
-                docs.append({"name": file.name, "category": "news"})
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1)})
             
             # Social files
             for file in (ces_dir / "social").glob("*.txt"):
-                docs.append({"name": file.name, "category": "social"})
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1)})
             
             # Video transcripts
             video_dir = ces_dir / "video"
             if video_dir.exists():
                 for file in video_dir.glob("*.txt"):
-                    docs.append({"name": file.name, "category": "video"})
+                    size_kb = file.stat().st_size / 1024
+                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1)})
             
             # README (documentation)
             readme = ces_dir / "README.md"
             if readme.exists():
-                docs.append({"name": readme.name, "category": "documentation"})
+                size_kb = readme.stat().st_size / 1024
+                docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1)})
                 
         elif tier == "lite":
             # 3 competitors + 10 papers + 5 social
