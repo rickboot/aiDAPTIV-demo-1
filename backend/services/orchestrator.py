@@ -59,7 +59,7 @@ SCENARIOS = {
 # AI THOUGHT TEMPLATES
 # ═══════════════════════════════════════════════════════════════
 
-THOUGHT_PHASES = {
+THOUGHT_PHASES_PMM = {
     "loading": {
         "text": "Plan: Load visual corpus containing {visual_count} competitor UI screenshots",
         "status": "PROCESSING",
@@ -95,6 +95,47 @@ THOUGHT_PHASES = {
     },
     "complete": {
         "text": "✅ Analysis complete: Competitive positioning gap identified",
+        "status": "COMPLETE",
+        "step_type": "thought"
+    }
+}
+
+THOUGHT_PHASES_CES = {
+    "loading": {
+        "text": "Plan: Monitor CES 2026 keynote streams and competitive announcements",
+        "status": "PROCESSING",
+        "trigger_percent": 5,
+        "step_type": "plan"
+    },
+    "analyzing": {
+        "text": "Analyzing Samsung booth demo video - checking for PM9E1 references",
+        "status": "ANALYZING",
+        "trigger_percent": 20,
+        "step_type": "thought",
+        "related_doc_ids": ["samsung_booth_demo.txt", "pm9e1_specs.txt"]
+    },
+    "cross_ref": {
+        "text": "Cross-referencing NVIDIA keynote transcript with phison_profile.txt",
+        "status": "ACTIVE",
+        "trigger_percent": 40,
+        "step_type": "action",
+        "tools": ["video_analysis", "rag_pipeline"]
+    },
+    "pattern": {
+        "text": "Observation: Detected consistent 'AI on Device' messaging from Intel, AMD, and NVIDIA",
+        "status": "ACTIVE",
+        "trigger_percent": 60,
+        "step_type": "observation"
+    },
+    "memory_pressure": {
+        "text": "⚠️ Video transcript context size > 24GB - triggering aiDAPTIV+ offload",
+        "status": "WARNING",
+        "trigger_percent": 85,
+        "step_type": "tool_use",
+        "tools": ["memory_manager"]
+    },
+    "complete": {
+        "text": "✅ Analysis complete: Samsung PM9E1 threat vector confirmed",
         "status": "COMPLETE",
         "step_type": "thought"
     }
@@ -383,9 +424,12 @@ class SimulationOrchestrator:
             )
         )
     
-    def _check_and_create_thought(self, progress_percent: float) -> Optional[ThoughtEvent]:
+    async def _check_and_create_thought(self, progress_percent: float) -> Optional[ThoughtEvent]:
         """Check if a thought should be sent at this progress point."""
-        for phase_name, phase_data in THOUGHT_PHASES.items():
+        # Select phases based on scenario
+        phases = THOUGHT_PHASES_CES if self.config.scenario == "ces2026" else THOUGHT_PHASES_PMM
+        
+        for phase_name, phase_data in phases.items():
             trigger = phase_data["trigger_percent"]
             
             # Send thought if we've crossed the trigger and haven't sent it yet
@@ -396,12 +440,14 @@ class SimulationOrchestrator:
                 if phase_name == "memory_pressure" and not self.aidaptiv_enabled:
                     continue
                 
-                # Format text with dynamic values
-                text = phase_data["text"].format(
-                    visual_count=847 if self.config.tier == "large" else 151,
-                    shifts=3 if self.config.tier == "large" else 2,
-                    total_competitors=12 if self.config.tier == "large" else 3
-                )
+                # Format text with dynamic values (safe get for optional params)
+                text = phase_data["text"]
+                if self.config.scenario == "pmm":
+                    text = text.format(
+                        visual_count=847 if self.config.tier == "large" else 151,
+                        shifts=3 if self.config.tier == "large" else 2,
+                        total_competitors=12 if self.config.tier == "large" else 3
+                    )
                 
                 return ThoughtEvent(
                     data=ThoughtData(
