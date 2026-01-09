@@ -14,8 +14,8 @@ from datetime import datetime
 
 class ScenarioConfig(BaseModel):
     """Configuration for a simulation scenario."""
-    scenario: Literal["pmm"] = "pmm"
-    tier: Literal["lite", "large"] = "lite"
+    scenario: Literal["pmm", "ces2026"] = "pmm"
+    tier: Literal["lite", "large", "standard"] = "lite"
     duration_seconds: int
     total_documents: int
     memory_target_gb: float
