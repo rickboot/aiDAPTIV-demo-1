@@ -8,13 +8,19 @@ const PMM_INITIAL_FEED: FeedItem[] = [
 
 export const SCENARIOS: Scenario[] = [
     {
-        id: 'pmm_war_room',
-        title: 'PMM Competitive Intelligence',
-        subtitle: 'Real-time competitor analysis across visual & technical sources',
-        description: 'Competitor Analysis',
+        id: 'pmm_lite',
+        title: 'PMM Analysis (Lite)',
+        subtitle: '18 Documents - Standard Laptop',
+        description: 'Competitor Analysis (Lite)',
         initialFeed: PMM_INITIAL_FEED
     },
-    // ... (Keep other scenarios for completeness if needed, or simplify) ...
+    {
+        id: 'pmm_large',
+        title: 'PMM Analysis (Large)',
+        subtitle: '268 Documents - Workstation Load',
+        description: 'Competitor Analysis (Large)',
+        initialFeed: PMM_INITIAL_FEED
+    }
 ];
 
 // GRID: 96 Items
