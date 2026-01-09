@@ -20,6 +20,7 @@ class ScenarioConfig(BaseModel):
     total_documents: int
     memory_target_gb: float
     crash_threshold_percent: Optional[float] = None  # Only for large tier without aiDAPTIV+
+    skip_thoughts: bool = False  # Dev mode: skip LLM thought generation for speed
     
     class Config:
         json_schema_extra = {

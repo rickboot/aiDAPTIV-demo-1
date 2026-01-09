@@ -50,7 +50,8 @@ SCENARIOS = {
         duration_seconds=10,  # Fast for dev (set to 120 for demo)
         total_documents=21,   # 5 dossier + 10 news + 2 social + 3 video + 1 README
         memory_target_gb=14.0,  # Higher target due to video transcripts + dossiers
-        crash_threshold_percent=None  # Won't crash - focused intelligence scenario
+        crash_threshold_percent=None,  # Won't crash - focused intelligence scenario
+        skip_thoughts=True  # DEV MODE: Skip LLM thoughts for speed (set to False for demo)
     )
 }
 
@@ -276,17 +277,18 @@ class SimulationOrchestrator:
                 return  # Stop simulation
             
             
-            # 5. SEND THOUGHT EVENTS (LLM-based or canned)
-            async for thought_event in self._generate_llm_thought(progress_percent):
-                yield thought_event
-                
-                # Simulate context growth: each thought adds ~500-1000 tokens
-                if thought_event.get('type') == 'thought':
-                    thought_text = thought_event.get('data', {}).get('text', '')
-                    # Rough estimate: 4 chars per token
-                    tokens_added = len(thought_text) // 4
-                    current_tokens = self.memory_monitor.context_tokens
-                    self.memory_monitor.set_context_size(current_tokens + tokens_added)
+            # 5. SEND THOUGHT EVENTS (LLM-based or canned) - Skip in dev mode
+            if not self.config.skip_thoughts:
+                async for thought_event in self._generate_llm_thought(progress_percent):
+                    yield thought_event
+                    
+                    # Simulate context growth: each thought adds ~500-1000 tokens
+                    if thought_event.get('type') == 'thought':
+                        thought_text = thought_event.get('data', {}).get('text', '')
+                        # Rough estimate: 4 chars per token
+                        tokens_added = len(thought_text) // 4
+                        current_tokens = self.memory_monitor.context_tokens
+                        self.memory_monitor.set_context_size(current_tokens + tokens_added)
             
             # Simulate context growth: each document adds to cumulative context
             # In real agentic systems, documents stay in context for future agents
@@ -301,7 +303,7 @@ class SimulationOrchestrator:
                 for metric_event in metric_events:
                     yield metric_event.model_dump()
             
-            # 6. WAIT FOR NEXT TICK
+            # 7. WAIT FOR NEXT TICK
             async for event in self._wait_with_telemetry(interval):
                 yield event
 
