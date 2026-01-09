@@ -316,10 +316,32 @@ class SimulationOrchestrator:
     
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
+        scenario = self.config.scenario
         tier = self.config.tier
         docs = []
         
-        if tier == "lite":
+        if scenario == "ces2026":
+            # Read actual files from documents/ces2026/
+            ces_dir = Path("documents/ces2026")
+            
+            # Dossier files (strategic context)
+            for file in (ces_dir / "dossier").glob("*.txt"):
+                docs.append({"name": file.name, "category": "dossier"})
+            
+            # News files
+            for file in (ces_dir / "news").glob("*.txt"):
+                docs.append({"name": file.name, "category": "news"})
+            
+            # Social files
+            for file in (ces_dir / "social").glob("*.txt"):
+                docs.append({"name": file.name, "category": "social"})
+            
+            # README (documentation)
+            readme = ces_dir / "README.md"
+            if readme.exists():
+                docs.append({"name": readme.name, "category": "documentation"})
+                
+        elif tier == "lite":
             # 3 competitors + 10 papers + 5 social
             for i in range(3):
                 docs.append({"name": f"competitor_{chr(97+i)}.txt", "category": "competitor"})

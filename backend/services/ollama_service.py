@@ -124,8 +124,8 @@ class OllamaService:
         Load all documents for a scenario/tier.
         
         Args:
-            scenario: Scenario ID (e.g., "pmm")
-            tier: Tier level ("lite" or "large")
+            scenario: Scenario ID (e.g., "pmm", "ces2026")
+            tier: Tier level ("lite", "large", or "standard" for ces2026)
         
         Returns:
             List of document dicts with 'category', 'name', 'content'
@@ -135,57 +135,111 @@ class OllamaService:
             return self.documents_cache[cache_key]
         
         documents = []
-        # Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
-        base_path = Path(__file__).parent.parent.parent / "documents" / scenario / tier
-        logger.info(f"Loading documents from: {base_path}")
         
-        # Load competitors
-        competitors_path = base_path / "competitors"
-        if competitors_path.exists():
-            for file_path in sorted(competitors_path.glob("*.txt")):
-                try:
-                    content = file_path.read_text(encoding='utf-8')
-                    size_kb = file_path.stat().st_size / 1024  # Convert bytes to KB
-                    documents.append({
-                        "category": "competitor",
-                        "name": file_path.stem,
-                        "content": content,
-                        "size_kb": round(size_kb, 1)
-                    })
-                except Exception as e:
-                    logger.warning(f"Failed to load {file_path}: {e}")
-        
-        # Load papers
-        papers_path = base_path / "papers"
-        if papers_path.exists():
-            for file_path in sorted(papers_path.glob("*.txt")):
-                try:
-                    content = file_path.read_text(encoding='utf-8')
-                    size_kb = file_path.stat().st_size / 1024
-                    documents.append({
-                        "category": "paper",
-                        "name": file_path.stem,
-                        "content": content,
-                        "size_kb": round(size_kb, 1)
-                    })
-                except Exception as e:
-                    logger.warning(f"Failed to load {file_path}: {e}")
-        
-        # Load social signals
-        social_path = base_path / "social"
-        if social_path.exists():
-            for file_path in sorted(social_path.glob("*.txt")):
-                try:
-                    content = file_path.read_text(encoding='utf-8')
-                    size_kb = file_path.stat().st_size / 1024
-                    documents.append({
-                        "category": "signal",
-                        "name": file_path.stem,
-                        "content": content,
-                        "size_kb": round(size_kb, 1)
-                    })
-                except Exception as e:
-                    logger.warning(f"Failed to load {file_path}: {e}")
+        # CES 2026 has different directory structure (no tier subdirectory)
+        if scenario == "ces2026":
+            base_path = Path(__file__).parent.parent.parent / "documents" / "ces2026"
+            logger.info(f"Loading CES 2026 documents from: {base_path}")
+            
+            # Load dossier files (strategic context)
+            dossier_path = base_path / "dossier"
+            if dossier_path.exists():
+                for file_path in sorted(dossier_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "dossier",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+            
+            # Load news files
+            news_path = base_path / "news"
+            if news_path.exists():
+                for file_path in sorted(news_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "news",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+            
+            # Load social signals
+            social_path = base_path / "social"
+            if social_path.exists():
+                for file_path in sorted(social_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "social",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+        else:
+            # PMM scenario: Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
+            base_path = Path(__file__).parent.parent.parent / "documents" / scenario / tier
+            logger.info(f"Loading documents from: {base_path}")
+            
+            # Load competitors
+            competitors_path = base_path / "competitors"
+            if competitors_path.exists():
+                for file_path in sorted(competitors_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024  # Convert bytes to KB
+                        documents.append({
+                            "category": "competitor",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+            
+            # Load papers
+            papers_path = base_path / "papers"
+            if papers_path.exists():
+                for file_path in sorted(papers_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "paper",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
+            
+            # Load social signals
+            social_path = base_path / "social"
+            if social_path.exists():
+                for file_path in sorted(social_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "signal",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
         
         self.documents_cache[cache_key] = documents
         logger.info(f"Loaded {len(documents)} documents for {scenario}/{tier}")
