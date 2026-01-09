@@ -223,6 +223,15 @@ class SimulationOrchestrator:
         # Get document list
         documents = self._get_document_list()
         
+        # Send initialization event with all documents
+        yield {
+            "type": "init",
+            "data": {
+                "documents": documents,
+                "total": total_docs
+            }
+        }
+        
         for doc_index in range(total_docs):
             # Calculate current progress
             progress_percent = ((doc_index + 1) / total_docs) * 100
