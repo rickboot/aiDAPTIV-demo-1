@@ -230,20 +230,20 @@ const SuccessOverlay = ({ onClose }: { onClose: () => void }) => {
 
                         <div className="space-y-4 mb-8">
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Competitors Analyzed</span>
-                                <span className="font-mono font-bold text-white">{metrics.competitors}</span>
+                                <span className="text-sm text-text-secondary">Entities Extracted</span>
+                                <span className="font-mono font-bold text-white">{metrics.entities_extracted}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Visual Assets</span>
-                                <span className="font-mono font-bold text-white">{metrics.visuals}</span>
+                                <span className="text-sm text-text-secondary">Patterns Detected</span>
+                                <span className="font-mono font-bold text-white">{metrics.patterns_detected}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Research Papers</span>
-                                <span className="font-mono font-bold text-white">{metrics.papers}</span>
+                                <span className="text-sm text-text-secondary">Insights Generated</span>
+                                <span className="font-mono font-bold text-white">{metrics.insights_generated}</span>
                             </div>
                             <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Verified Signals</span>
-                                <span className="font-mono font-bold text-white text-amber-400">{metrics.signals}</span>
+                                <span className="text-sm text-text-secondary">Critical Flags</span>
+                                <span className="font-mono font-bold text-white text-amber-400">{metrics.critical_flags}</span>
                             </div>
                         </div>
 
