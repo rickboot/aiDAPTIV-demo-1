@@ -116,7 +116,7 @@ export const HardwareMonitor = () => {
                 right: position.x === -1 ? '1.5rem' : 'auto', // Fallback to right-6
                 bottom: position.y === -1 ? '1.5rem' : 'auto' // Fallback to bottom-6
             }}
-            className={`fixed w-72 z-50 transition-opacity duration-300 ease-in-out ${showHardwareMonitor ? 'opacity-100' : 'opacity-0'} ${isDragging ? 'cursor-grabbing select-none' : ''}`}
+            className={`fixed w-64 z-50 transition-opacity duration-300 ease-in-out ${showHardwareMonitor ? 'opacity-100' : 'opacity-0'} ${isDragging ? 'cursor-grabbing select-none' : ''}`}
         >
             <div className="bg-dashboard-card border border-dashboard-border shadow-[0_0_30px_rgba(0,0,0,0.3)] rounded-lg backdrop-blur-sm overflow-hidden">
 

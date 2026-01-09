@@ -261,7 +261,7 @@ class OllamaService:
         logger.info(f"Loaded {len(documents)} documents for {scenario}/{tier}")
         return documents
     
-    def build_context(self, documents: List[Dict], max_tokens: int = 8000) -> str:
+    def build_context(self, documents: List[Dict], max_tokens: int = 50000) -> str:
         """
         Build context string from documents with section markers.
         
@@ -275,16 +275,39 @@ class OllamaService:
         context_parts = []
         
         # Group by category
+        dossier = [d for d in documents if d['category'] == 'dossier']
         competitors = [d for d in documents if d['category'] == 'competitor']
+        news = [d for d in documents if d['category'] == 'news']
         papers = [d for d in documents if d['category'] == 'paper']
         social = [d for d in documents if d['category'] == 'social']
+        video = [d for d in documents if d['category'] == 'video']
+        
+        # Add dossier (strategic context) first
+        if dossier:
+            context_parts.append("═══════════════════════════════════════════════════════════════")
+            context_parts.append("STRATEGIC DOSSIER")
+            context_parts.append("═══════════════════════════════════════════════════════════════\n")
+            for doc in dossier:
+                context_parts.append(f"## {doc['name'].upper()}\n")
+                context_parts.append(doc['content'])
+                context_parts.append("\n")
         
         # Add competitors
         if competitors:
-            context_parts.append("═══════════════════════════════════════════════════════════════")
+            context_parts.append("\n═══════════════════════════════════════════════════════════════")
             context_parts.append("COMPETITOR INTELLIGENCE")
             context_parts.append("═══════════════════════════════════════════════════════════════\n")
             for doc in competitors:
+                context_parts.append(f"## {doc['name'].upper()}\n")
+                context_parts.append(doc['content'])
+                context_parts.append("\n")
+        
+        # Add news
+        if news:
+            context_parts.append("\n═══════════════════════════════════════════════════════════════")
+            context_parts.append("NEWS & ANALYSIS")
+            context_parts.append("═══════════════════════════════════════════════════════════════\n")
+            for doc in news:
                 context_parts.append(f"## {doc['name'].upper()}\n")
                 context_parts.append(doc['content'])
                 context_parts.append("\n")
@@ -305,6 +328,16 @@ class OllamaService:
             context_parts.append("SOCIAL SIGNALS")
             context_parts.append("═══════════════════════════════════════════════════════════════\n")
             for doc in social:
+                context_parts.append(f"## {doc['name'].upper()}\n")
+                context_parts.append(doc['content'])
+                context_parts.append("\n")
+        
+        # Add video transcripts
+        if video:
+            context_parts.append("\n═══════════════════════════════════════════════════════════════")
+            context_parts.append("VIDEO TRANSCRIPTS")
+            context_parts.append("═══════════════════════════════════════════════════════════════\n")
+            for doc in video:
                 context_parts.append(f"## {doc['name'].upper()}\n")
                 context_parts.append(doc['content'])
                 context_parts.append("\n")
