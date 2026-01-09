@@ -332,21 +332,11 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 break;
 
             case 'metric':
-                // Update metrics - map backend names to frontend names
-                const metricNameMap: { [key: string]: keyof Metrics } = {
-                    'visual_updates': 'visuals',
-                    'papers_analyzed': 'papers',
-                    'signals_detected': 'signals',
-                    'competitors_tracked': 'competitors'
-                };
-
-                const frontendMetricName = metricNameMap[message.data.name];
-                if (frontendMetricName) {
-                    setMetrics(prev => ({
-                        ...prev,
-                        [frontendMetricName]: message.data.value
-                    }));
-                }
+                // Update metrics - names match 1:1 with backend
+                setMetrics(prev => ({
+                    ...prev,
+                    [message.data.name]: message.data.value
+                }));
                 break;
 
             case 'complete':
