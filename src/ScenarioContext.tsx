@@ -242,6 +242,21 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     // Handle WebSocket messages
     const handleWebSocketMessage = (message: any) => {
         switch (message.type) {
+            case 'init':
+                // Initialize world model with all documents
+                if (message.data.documents) {
+                    const initialModel = message.data.documents.map((doc: any, index: number) => ({
+                        id: `doc-${index}`,
+                        type: doc.category === 'competitor' ? 'screenshot' : 'pdf_embedding',
+                        title: doc.name,
+                        memorySize: 50,
+                        lastAccessed: Date.now(),
+                        status: 'pending'
+                    }));
+                    setWorldModel(initialModel);
+                }
+                break;
+
             case 'thought':
                 // Add thought to feed
                 setCurrentActivity('AI Reasoning...');
