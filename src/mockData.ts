@@ -65,8 +65,8 @@ export const SUCCESS_REPORT = {
 
 // Start metrics (increment from here)
 export const INITIAL_METRICS = {
-    competitors: 12,
-    visuals: 140, // Target 847
-    papers: 10,   // Target 234
-    signals: 0    // Target 3
+    entities_extracted: 0,
+    patterns_detected: 0,
+    insights_generated: 0,
+    critical_flags: 0
 };
