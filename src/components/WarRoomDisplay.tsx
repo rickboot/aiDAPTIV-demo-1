@@ -281,7 +281,7 @@ export const WarRoomDisplay = () => {
     // Auto-scroll effect for Data Grid (only if ALL or LIVE)
     React.useEffect(() => {
         if (isAnalysisRunning && activeFileRef.current && (dataFilter === 'ALL' || dataFilter === 'LIVE')) {
-            activeFileRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            activeFileRef.current.scrollIntoView({ behavior: 'auto', block: 'center' });
         }
     }, [worldModel, isAnalysisRunning, dataFilter]);
 
