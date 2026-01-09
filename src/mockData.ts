@@ -65,7 +65,7 @@ export const SUCCESS_REPORT = {
 
 // Start metrics (increment from here)
 export const INITIAL_METRICS = {
-    entities_extracted: 0,
+    key_topics: 0,
     patterns_detected: 0,
     insights_generated: 0,
     critical_flags: 0
