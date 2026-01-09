@@ -86,6 +86,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         const found = SCENARIOS.find(s => s.id === id);
         if (found) {
             setActiveScenarioState(found);
+
+            // Auto-enable aiDAPTIV+ for Large scenarios so demo succeeds by default
+            if (found.id.includes('large')) {
+                setSystemState(prev => ({ ...prev, isAidaptivEnabled: true }));
+            }
+
             resetAnalysis();
             setFeed(found.initialFeed);
         }
