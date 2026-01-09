@@ -189,7 +189,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         setCrashDetails(null);
         setCurrentActivity('Initializing analysis...');
 
-        if (tier === 'large') {
+        if (activeScenario.id.includes('large')) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate connection delay for large
         }
 
@@ -202,9 +202,10 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             console.log('WebSocket connected');
 
             // Send simulation parameters
+            // Send simulation parameters
             const params = {
-                scenario: activeScenario.id === 'pmm_war_room' ? 'pmm' : activeScenario.id,
-                tier: tier,
+                scenario: 'pmm',
+                tier: activeScenario.id.includes('large') ? 'large' : 'lite',
                 aidaptiv_enabled: systemState.isAidaptivEnabled
             };
 
