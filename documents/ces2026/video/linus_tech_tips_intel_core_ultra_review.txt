@@ -1,0 +1,195 @@
+LINUS TECH TIPS: "Intel Core Ultra Series 3 - The Memory Problem"
+Video Transcript | January 8, 2026 | 18 minutes
+Source: YouTube (Linus Tech Tips) - 1.2M views
+
+[TRANSCRIPT BEGINS - 00:00:00]
+
+LINUS: What's up guys, Linus here. So Intel just launched the Core Ultra Series 3 at CES, and on paper, it looks amazing. 96 gigabytes of RAM support, 50 TOPS NPU, all that good stuff. But I've been testing it for the past week, and I need to talk about the elephant in the room: memory.
+
+[00:00:30]
+
+[B-roll: Unboxing Core Ultra laptop]
+
+LINUS: Intel sent us this pre-production unit - shout out to Intel for the early access - and it's configured with the maximum 96GB of LPDDR5X. That's double what you could get on Lunar Lake, and it's a big deal.
+
+But here's the thing: for AI workloads, 96GB still isn't enough. And I'm going to show you why.
+
+[00:01:00]
+
+[Screen recording: Task Manager showing memory usage]
+
+LINUS: Okay, so I'm running Llama 3.1 70B locally. This is a quantized Q4 model, so it's not even full precision. The model weights alone are taking up 38 gigabytes. Then you've got the KV cache - that's the context memory - which is another 22 gigabytes for a 32K context window.
+
+We're already at 60GB just to load the model. And I haven't even opened Chrome yet. [Laughs]
+
+[00:01:45]
+
+LINUS: Now, Intel will tell you - and they're not wrong - that most people don't need to run 70B models locally. For everyday AI tasks, smaller models work fine. But here's my counter-argument: if you're buying a $2,500 laptop specifically for AI work, you probably want to run the good models.
+
+[00:02:15]
+
+[Cut to Linus at desk]
+
+LINUS: Let me show you what happens when we try to extend the context window. I'm going to feed it a bunch of documents - let's say I'm doing research and I want the AI to analyze 20 PDFs simultaneously.
+
+[Screen recording: Loading documents into LLM]
+
+LINUS: Each PDF is about 10,000 tokens. So 20 PDFs is 200,000 tokens of context. And watch what happens to memory usage...
+
+[Memory graph climbing]
+
+LINUS: We're hitting 92 gigabytes. The system is starting to swap to disk. Performance is tanking. We went from 25 tokens per second down to 4 tokens per second. This is unusable.
+
+[00:03:00]
+
+LINUS: And this is with the maximum 96GB configuration! If you bought the base model with 32GB - which, let's be honest, most people will because the 96GB version is going to cost like $3,500 - you'd be completely hosed.
+
+[00:03:30]
+
+[Cut to Linus]
+
+LINUS: Now, I want to be fair to Intel here. They're not claiming this is a workstation replacement. This is positioned as an AI PC for mainstream users. And for that use case - running Copilot, doing some image generation, maybe some light coding assistance - 96GB is plenty.
+
+But the marketing says "AI PC," and when I hear that, I think "I can run AI workloads." And the reality is, for serious AI work, you need more than 96GB.
+
+[00:04:00]
+
+[B-roll: Comparison chart]
+
+LINUS: Let's compare this to the competition. AMD's Ryzen AI Max+ can allocate up to 128GB to the GPU. That's better, but it's shared memory, so you're competing with the CPU. Apple's Mac Studio goes up to 512GB of unified memory, but you're paying like $7,000 for that configuration.
+
+So Intel's 96GB is competitive in the Windows ecosystem. But it's still fundamentally limited.
+
+[00:04:45]
+
+LINUS: Here's what I think is going to happen: we're going to see a new tier of "AI workstation" laptops that push past 128GB. Maybe 256GB, maybe more. Because the demand is there.
+
+I've been talking to developers, data scientists, researchers - they all say the same thing: "I need more RAM." And until we get there, people are either going to stick with cloud AI, or they're going to find workarounds.
+
+[00:05:15]
+
+[Screen recording: SSD benchmark]
+
+LINUS: Speaking of workarounds, let's talk about SSD-based memory offload. This is a technique where you use your SSD as extended memory for AI workloads. It's slower than RAM, obviously, but it's way cheaper and you can get terabytes of capacity.
+
+I've been testing this with a PCIe Gen 5 SSD - specifically, one with a Phison E26 controller that's supposedly optimized for this use case. And the results are... interesting.
+
+[00:05:45]
+
+[Performance graphs]
+
+LINUS: So with SSD offload enabled, I can run that same 70B model with 200K context. Memory usage on the SSD hits about 80 gigabytes. And performance? I'm getting 12 tokens per second. That's not as fast as pure RAM (which was 25 t/s), but it's way better than swapping (which was 4 t/s).
+
+[00:06:15]
+
+LINUS: The key is having a fast SSD. This Phison E26 drive is doing 14 GB/s sequential reads, and that makes a huge difference. If you tried this with a SATA SSD, you'd be waiting forever.
+
+[00:06:45]
+
+[Cut to Linus]
+
+LINUS: Now, is this a perfect solution? No. You're still taking a performance hit compared to just having more RAM. But it's a pragmatic workaround for the memory shortage we're in.
+
+And here's the thing: SSD manufacturers are starting to optimize for this. I've seen demos from Samsung, from Phison, from others, where they're building AI-specific features into their controllers. Intelligent caching, KV-cache-aware firmware, all that stuff.
+
+[00:07:15]
+
+LINUS: I think this is the future for mainstream AI PCs. You'll have maybe 64-96GB of RAM for hot data, and then terabytes of SSD capacity for cold data. The OS will manage it transparently, and most users won't even know it's happening.
+
+[00:07:45]
+
+[Screen recording: Benchmark results]
+
+LINUS: Let me show you some more benchmarks. This is Stable Diffusion XL, generating images at 1024x1024. With 96GB of RAM, I can run about 6 concurrent batches before I start swapping. With SSD offload, I can run 20 concurrent batches. It's slower per image, but the total throughput is higher.
+
+[00:08:15]
+
+LINUS: For batch workloads like this - where you're generating a bunch of images overnight, or processing a dataset, or whatever - SSD offload makes total sense. You trade latency for capacity, and that's often the right trade-off.
+
+[00:08:45]
+
+[Cut to Linus]
+
+LINUS: Okay, let's talk about the NPU. Intel's claiming 50 TOPS, which is a big jump from the 40 TOPS on Lunar Lake. And in theory, this should offload AI tasks from the CPU and GPU, saving power and freeing up memory.
+
+[00:09:00]
+
+[Screen recording: NPU utilization]
+
+LINUS: In practice... it's complicated. The NPU is great for specific tasks - like background blur on video calls, or real-time translation, or Windows Copilot features. But for general AI workloads, you're still using the CPU or GPU.
+
+The problem is software support. Most AI frameworks - PyTorch, TensorFlow, whatever - don't have good NPU backends yet. So even though you have this 50 TOPS accelerator sitting there, you can't actually use it for your own AI projects.
+
+[00:09:45]
+
+LINUS: Intel says this will improve over time as the ecosystem matures. And I believe them - we saw the same thing with GPU acceleration back in the day. But right now, in January 2026, the NPU is mostly useful for Microsoft's built-in features.
+
+[00:10:15]
+
+[Cut to Linus]
+
+LINUS: Let me talk about thermals, because this is important. When you're running AI workloads, you're pushing the CPU, GPU, and NPU simultaneously. And in a thin-and-light laptop, that's a lot of heat.
+
+[00:10:30]
+
+[Thermal camera footage]
+
+LINUS: This is a thermal camera shot of the laptop under full AI load. You can see hot spots around the CPU and the SSD. We're hitting 95 degrees Celsius on the CPU, and the SSD is at 75 degrees.
+
+Intel's thermal management is pretty good - it's throttling intelligently to keep things under control. But you're definitely losing performance compared to a desktop or workstation.
+
+[00:11:00]
+
+LINUS: And this is where I think the "AI PC" category is still figuring itself out. Do you optimize for thin-and-light portability, or do you optimize for sustained AI performance? Because you can't really have both.
+
+[00:11:30]
+
+[Cut to Linus]
+
+LINUS: Alright, let's talk about pricing. Intel hasn't announced official pricing yet, but based on OEM leaks, we're looking at:
+- 32GB model: ~$1,800
+- 64GB model: ~$2,500
+- 96GB model: ~$3,500
+
+That 96GB model is expensive. You're paying a huge premium for that extra memory. And honestly, I'm not sure it's worth it for most people.
+
+[00:12:00]
+
+LINUS: If you're a developer or researcher who needs to run large models locally, maybe it makes sense. But for everyone else, I'd probably recommend the 64GB model and use SSD offload for the occasional big workload.
+
+[00:12:30]
+
+[B-roll: Laptop beauty shots]
+
+LINUS: Overall, the Core Ultra Series 3 is a solid product. The performance is good, the NPU is a nice addition, and 96GB of RAM is a step in the right direction.
+
+But it's not a magic bullet for AI workloads. You're still going to hit memory limits. You're still going to need workarounds. And you're still going to be making trade-offs between performance, portability, and price.
+
+[00:13:00]
+
+LINUS: My recommendation? If you're buying an AI PC in 2026, get as much RAM as you can afford, get a fast PCIe Gen 5 SSD, and be prepared to use SSD offload for big workloads. That's the reality of AI computing right now.
+
+[00:13:30]
+
+[Cut to Linus]
+
+LINUS: And hey, maybe by 2027, we'll have 256GB laptops at reasonable prices. Or maybe memory prices will crash and we can all upgrade. But for now, this is what we've got.
+
+[00:13:45]
+
+LINUS: Thanks to Intel for sending this unit. Thanks to our sponsor, [sponsor read]. And thanks to you guys for watching. If you liked this video, hit that like button. If you want to see more AI PC coverage, let me know in the comments. And I'll see you in the next one.
+
+[00:14:15]
+
+[Outro music]
+
+[TRANSCRIPT ENDS - 00:14:30]
+
+---
+
+METADATA:
+- Duration: 14.5 minutes
+- Transcript length: ~6,800 tokens
+- Key topics: Intel Core Ultra Series 3, 96GB memory limitation, SSD offload, NPU utilization, AI PC trade-offs
+- Mentions: Phison E26 SSD (positive), AMD 128GB, Apple 512GB, memory shortage workarounds
+- Strategic signals for Phison: Validation of SSD offload approach, E26 mentioned positively, confirms memory shortage driving demand

@@ -29,7 +29,7 @@ export const SCENARIOS: Scenario[] = [
     {
         id: 'ces2026',
         title: 'CES 2026 Supply Chain Monitor',
-        subtitle: '15 Intelligence Sources - Phison Context',
+        subtitle: '18 Intelligence Sources - Video Transcripts',
         description: 'Strategic Intelligence for aiDAPTIV+ (CES 2026)',
         initialFeed: CES2026_INITIAL_FEED
     }

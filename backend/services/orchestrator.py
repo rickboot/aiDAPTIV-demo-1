@@ -47,9 +47,9 @@ SCENARIOS = {
     "ces2026_standard": ScenarioConfig(
         scenario="ces2026",
         tier="standard",
-        duration_seconds=90,  # 1.5 minutes for intelligence analysis
-        total_documents=15,   # 2 dossier + 10 news + 2 social + 1 README
-        memory_target_gb=8.0,
+        duration_seconds=120,  # 2 minutes for intelligence analysis (includes video transcripts)
+        total_documents=18,   # 2 dossier + 10 news + 2 social + 3 video + 1 README
+        memory_target_gb=12.0,  # Higher target due to video transcripts
         crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
 }
@@ -335,6 +335,12 @@ class SimulationOrchestrator:
             # Social files
             for file in (ces_dir / "social").glob("*.txt"):
                 docs.append({"name": file.name, "category": "social"})
+            
+            # Video transcripts
+            video_dir = ces_dir / "video"
+            if video_dir.exists():
+                for file in video_dir.glob("*.txt"):
+                    docs.append({"name": file.name, "category": "video"})
             
             # README (documentation)
             readme = ces_dir / "README.md"

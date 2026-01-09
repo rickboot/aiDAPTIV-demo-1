@@ -188,6 +188,22 @@ class OllamaService:
                         })
                     except Exception as e:
                         logger.warning(f"Failed to load {file_path}: {e}")
+            
+            # Load video transcripts
+            video_path = base_path / "video"
+            if video_path.exists():
+                for file_path in sorted(video_path.glob("*.txt")):
+                    try:
+                        content = file_path.read_text(encoding='utf-8')
+                        size_kb = file_path.stat().st_size / 1024
+                        documents.append({
+                            "category": "video",
+                            "name": file_path.stem,
+                            "content": content,
+                            "size_kb": round(size_kb, 1)
+                        })
+                    except Exception as e:
+                        logger.warning(f"Failed to load {file_path}: {e}")
         else:
             # PMM scenario: Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
             base_path = Path(__file__).parent.parent.parent / "documents" / scenario / tier

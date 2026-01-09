@@ -89,7 +89,7 @@ class DocumentData(BaseModel):
     name: str
     index: int = Field(..., ge=0)
     total: int = Field(..., gt=0)
-    category: Literal["competitor", "paper", "social", "dossier", "news", "documentation"]
+    category: Literal["competitor", "paper", "social", "dossier", "news", "documentation", "video"]
     size_kb: float = Field(default=50.0, ge=0)
 
 
