@@ -264,13 +264,13 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     const handleWebSocketMessage = (message: any) => {
         switch (message.type) {
             case 'init':
-                // Initialize world model with all documents
+                // Initialize world model with placeholders - don't show size/type until processed
                 if (message.data.documents) {
                     const initialModel = message.data.documents.map((doc: any, index: number) => ({
                         id: `doc-${index}`,
-                        type: doc.category === 'competitor' ? 'screenshot' : 'pdf_embedding',
+                        type: 'text_document', // Generic placeholder
                         title: doc.name,
-                        memorySize: 50,
+                        memorySize: 0, // Don't show size until processed
                         lastAccessed: Date.now(),
                         status: 'pending'
                     }));
