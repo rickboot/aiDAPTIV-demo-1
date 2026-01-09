@@ -365,33 +365,33 @@ class SimulationOrchestrator:
             # Read actual files from documents/ces2026/
             ces_dir = Path("documents/ces2026")
             
-            # Dossier files (strategic context)
-            for file in (ces_dir / "dossier").glob("*.txt"):
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1)})
-            
-            # News files
-            for file in (ces_dir / "news").glob("*.txt"):
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1)})
-            
-            # Social files
-            for file in (ces_dir / "social").glob("*.txt"):
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1)})
-            
-            # Video transcripts
-            video_dir = ces_dir / "video"
-            if video_dir.exists():
-                for file in video_dir.glob("*.txt"):
-                    size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1)})
-            
-            # README (documentation)
+            # 1. README (Core Instructions) - Load FIRST
             readme = ces_dir / "README.md"
             if readme.exists():
                 size_kb = readme.stat().st_size / 1024
                 docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1)})
+            
+            # 2. Dossier files (Strategic Context) - Load SECOND
+            for file in sorted((ces_dir / "dossier").glob("*.txt")):
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1)})
+            
+            # 3. News files
+            for file in sorted((ces_dir / "news").glob("*.txt")):
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1)})
+            
+            # 4. Social files
+            for file in sorted((ces_dir / "social").glob("*.txt")):
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1)})
+            
+            # 5. Video transcripts
+            video_dir = ces_dir / "video"
+            if video_dir.exists():
+                for file in sorted(video_dir.glob("*.txt")):
+                    size_kb = file.stat().st_size / 1024
+                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1)})
                 
         elif tier == "lite":
             # 3 competitors + 10 papers + 5 social
