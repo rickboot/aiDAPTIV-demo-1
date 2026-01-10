@@ -25,7 +25,6 @@ The demo is designed to simulate a real-world workload to prove the value of the
 **UI Elements:**
 *   **Hardware Monitor (Sidebar):** The real-time "truth" of the system resources.
 *   **Crash Screen (The Failure):** The consequence of *not* having the hardware.
-*   **Success Overlay (The Reveal):** The bridge between the two worlds—showing how the hardware enabled the business result.
 
 ---
 
@@ -72,14 +71,12 @@ These metrics measure **Pressure & Capacity**. They tell the story of the *syste
 
 ## Interaction Model
 
-1.  **The Trigger**: The simulated workload (Userland) dumps hundreds of documents into the context.
+1.  **The Trigger**: The simulated workload (Userland) dumps high-fidelity documents into the context.
 2.  **The Pressure**: The Hardware Monitor (Customer Land) shows RAM filling up and Context Tokens skyrocketing.
 3.  **The Crisis**:
     *   *Without aiDAPTIV+:* The system OOMs. The Userland "Movie" stops abruptly.
     *   *With aiDAPTIV+:* The "Offload" metric activates. The simulation continues.
-4.  **The Payoff**: The Success Overlay appears. It explicitly links the two worlds:
-    *   "Because you offloaded **20GB** (Customer Land)..."
-    *   "...you successfully identified **12 Critical Flags** (Userland)."
+4.  **The Payoff**: The AI Reasoning Chain successfully synthesizes the "Memory Wall" narrative, connecting NVIDIA's hardware cluster growth with client-side bottlenecks.
 
 ---
 

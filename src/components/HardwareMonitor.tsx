@@ -43,7 +43,6 @@ export const HardwareMonitor = () => {
     // 3. Drag Handlers
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
-        const rect = e.currentTarget.getBoundingClientRect();
         // Calculate offset from the top-left of the element
         dragOffset.current = {
             x: e.clientX - position.x,
@@ -81,10 +80,10 @@ export const HardwareMonitor = () => {
     }, [isDragging, position]); // Re-bind with latest position if needed, though ref implies we don't need pos in dep
 
 
-    const { impactSummary } = useScenario();
+    const { impactSummary, worldModel, isAnalysisRunning } = useScenario();
     const {
-        documents_processed = 0,
-        total_documents = 0,
+        documents_processed: impactProcessed = 0,
+        total_documents: impactTotal = 0,
         memory_saved_gb = 0,
         estimated_cost_local = 0,
         estimated_cost_cloud = 0,
@@ -92,7 +91,13 @@ export const HardwareMonitor = () => {
         time_without_aidaptiv = 0
     } = impactSummary || {};
 
-    const isSuccess = impactSummary ? documents_processed === total_documents : false;
+    // Use world model to get live counts if impactSummary isn't ready
+    const liveProcessed = worldModel.filter(d => d.status === 'vram').length;
+    const liveTotal = worldModel.length;
+
+    const displayProcessed = impactSummary ? impactProcessed : liveProcessed;
+    const displayTotal = impactSummary ? impactTotal : liveTotal;
+
 
     // If we shouldn't render at all yet (for initial load)
     if (!showHardwareMonitor && !visible) return null;
@@ -244,23 +249,43 @@ export const HardwareMonitor = () => {
                                     {performance.status}
                                 </span>
                             </div>
+
+                            {/* Elapsed Time */}
+                            <div className="flex justify-between items-center pt-1">
+                                <span className="text-[9px] text-text-muted uppercase tracking-wide">Elapsed</span>
+                                <span className="text-xs font-mono font-semibold text-cyan-400">
+                                    {Math.floor((useScenario().elapsedSeconds || 0) / 60)}:{String((useScenario().elapsedSeconds || 0) % 60).padStart(2, '0')}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     {/* 5. CONTEXT & KV CACHE */}
-                    <div className="bg-dashboard-bg/30 rounded-lg p-3 border border-dashboard-border/30">
-                        <div className="flex items-center gap-2 mb-2">
-                            <svg className="w-3.5 h-3.5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span className="text-[10px] font-bold text-text-primary uppercase tracking-widest">Context & Cache</span>
+                    <div className="pt-4 border-t border-dashboard-border/30 mt-4">
+                        <div className="flex justify-between items-center mb-3">
+                            <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">Context & Cache</div>
+                            {isAnalysisRunning && displayTotal > 0 && (
+                                <div className="text-[9px] font-mono text-emerald-400">
+                                    {(displayProcessed / displayTotal * 100).toFixed(0)}% Ingested
+                                </div>
+                            )}
                         </div>
                         <div className="space-y-2">
+                            {/* Loaded Model */}
+                            {systemState.loaded_model && (
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[9px] text-text-muted uppercase tracking-wide">Loaded Model</span>
+                                    <span className="text-xs font-mono font-semibold text-purple-400">
+                                        {systemState.loaded_model}
+                                    </span>
+                                </div>
+                            )}
+
                             {/* Context Size */}
                             <div className="flex justify-between items-center">
                                 <span className="text-[9px] text-text-muted uppercase tracking-wide">Context</span>
                                 <span className="text-xs font-mono font-semibold text-purple-400">
-                                    {((systemState as any).context_tokens || 0).toLocaleString()} tokens
+                                    {(systemState.context_tokens || 0).toLocaleString()} tokens
                                 </span>
                             </div>
 
@@ -268,7 +293,7 @@ export const HardwareMonitor = () => {
                             <div className="flex justify-between items-center">
                                 <span className="text-[9px] text-text-muted uppercase tracking-wide">KV Cache</span>
                                 <span className="text-xs font-mono font-semibold text-purple-400">
-                                    {((systemState as any).kv_cache_gb || 0).toFixed(2)} GB
+                                    {(systemState.kv_cache_gb || 0).toFixed(2)} GB
                                 </span>
                             </div>
 
@@ -276,7 +301,7 @@ export const HardwareMonitor = () => {
                             <div className="flex justify-between items-center">
                                 <span className="text-[9px] text-text-muted uppercase tracking-wide">Model</span>
                                 <span className="text-xs font-mono font-semibold text-blue-400">
-                                    {((systemState as any).model_weights_gb || 0).toFixed(1)} GB
+                                    {(systemState.model_weights_gb || 0).toFixed(1)} GB
                                 </span>
                             </div>
 

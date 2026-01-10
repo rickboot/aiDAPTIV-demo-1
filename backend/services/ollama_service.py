@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import AsyncGenerator, List, Dict
 import asyncio
 
+import asyncio
+import base64
+import time
+
 try:
     import ollama
     OLLAMA_AVAILABLE = True
@@ -408,7 +412,16 @@ class OllamaService:
             full_context = full_context[:char_limit] + "\n\n[... context truncated due to size ...]"
         
         return full_context
-    
+
+    def _encode_image(self, image_path: str) -> str:
+        """Encode image to base64 for Ollama API"""
+        try:
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Error encoding image {image_path}: {e}")
+            return ""
+
     async def generate_reasoning(
         self, 
         context: str, 
@@ -416,34 +429,53 @@ class OllamaService:
         scenario: str = "pmm"
     ) -> AsyncGenerator[tuple[str, dict], None]:
         """
-        Generate LLM reasoning for a specific analysis phase with performance tracking.
-        
-        Args:
-            context: Full document context
-            phase_key: Phase identifier (e.g., "phase_1_review")
-            scenario: Current scenario ID
-        
-        Yields:
-            Tuple of (thought_text, performance_metrics)
+        Backward compatible wrapper for generate_step using predefined phases.
         """
         phases = ANALYSIS_PHASES_CES if scenario == "ces2026" else ANALYSIS_PHASES
         phase = phases.get(phase_key)
         if not phase:
             logger.error(f"Unknown phase: {phase_key} for scenario {scenario}")
             return
+
+        system_prompt = phase.get("system_prompt", "You are an AI analyst.")
+        user_prompt = phase['prompt']
+        model = phase.get("model", self.model)
+
+        async for thought_text, metrics in self.generate_step(
+            context=context,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            model=model
+        ):
+            yield thought_text, metrics
+    
+    async def generate_step(
+        self, 
+        context: str, 
+        system_prompt: str,
+        user_prompt: str,
+        model: str = "llama3.1:8b",
+        image_paths: List[str] = None
+    ) -> AsyncGenerator[tuple[str, dict], None]:
+        """
+        Generate LLM reasoning for a specific agent step with custom prompts.
+        Allows flexible execution of Plan/Action/Observation/Thought.
         
-        # Build simplified prompt - don't send full context to reduce processing time
-        system_prompt = phase.get("system_prompt", """You are an AI analyst for competitive intelligence. 
-Provide concise, specific insights based on the analysis phase.""")
+        Args:
+            context: Document context
+            system_prompt: Role and format instructions
+            user_prompt: The specific task
+            model: Model to use
         
-        user_prompt = f"""CONTEXT DATA:
+        Yields:
+            Tuple of (thought_text, performance_metrics)
+        """
+        full_user_prompt = f"""CONTEXT DATA:
 {context}
 
-ANALYSIS TASK:
-{phase['prompt']}
-
-Provide a brief 1-2 sentence insight for this phase of analysis based strictly on the provided context."""
-        
+TASK:
+{user_prompt}
+"""
         try:
             import time
             first_token_time = None
@@ -455,26 +487,53 @@ Provide a brief 1-2 sentence insight for this phase of analysis based strictly o
             
             # Prepare args
             chat_args = {
-                'model': phase.get("model", self.model),
+                'model': model if model else self.model,
                 'messages': [
                     {'role': 'system', 'content': system_prompt},
-                    {'role': 'user', 'content': user_prompt}
+                    {'role': 'user', 'content': full_user_prompt}
                 ],
-                'stream': True
+                'stream': True,
+                'options': {
+                    'num_predict': 300,  # Limit output tokens to prevent vision model timeouts
+                    'temperature': 0.7
+                }
             }
             
-            # For LLaVA (Vision), inject the mock UI screenshot if it exists
-            if chat_args['model'] == 'llava':
-                # Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
-                img_path = Path(__file__).parent.parent.parent / "documents" / "pmm" / "lite" / "competitors" / "competitor_ui.png"
-                if img_path.exists():
-                    logger.info(f"Injecting image for LLaVA: {img_path}")
-                    # LLaVA expects image in the user message
-                    chat_args['messages'][1]['images'] = [str(img_path)]
+            # For LLaVA (Vision), inject image if model is a vision model
+            if chat_args['model'].startswith('llava'):
+                # Use provided image paths if available, otherwise fall back to hardcoded candidates
+                if image_paths and len(image_paths) > 0:
+                    # Use the provided image paths
+                    encoded_images = []
+                    for img_path_str in image_paths:
+                        img_path = Path(img_path_str)
+                        if img_path.exists():
+                            logger.info(f"Injecting image for LLaVA ({chat_args['model']}): {img_path.name}")
+                            encoded_images.append(self._encode_image(str(img_path)))
+                        else:
+                            logger.warning(f"Image path does not exist: {img_path}")
+                    
+                    if encoded_images:
+                        chat_args['messages'][1]['images'] = encoded_images
+                    else:
+                        logger.warning(f"No valid images found for {chat_args['model']}, proceeding without image")
+                else:
+                    # Fallback for demo when no image_paths provided but model is llava
+                    img_candidates = [
+                        Path(__file__).parent.parent.parent / "documents" / "ces2026" / "images" / "infographics" / "samsung_ssd_roadmap_1767950527033.png",
+                        Path(__file__).parent.parent.parent / "documents" / "pmm" / "lite" / "competitors" / "competitor_ui.png"
+                    ]
+                    for candidate in img_candidates:
+                        if candidate.exists():
+                            logger.info(f"Fallback: Injecting image for LLaVA: {candidate.name}")
+                            chat_args['messages'][1]['images'] = [self._encode_image(str(candidate))]
+                            break
             
             stream = ollama.chat(**chat_args)
             
+            
             buffer = ""
+            last_chunk = None
             for chunk in stream:
                 content = chunk['message']['content']
                 buffer += content
@@ -485,6 +544,10 @@ Provide a brief 1-2 sentence insight for this phase of analysis based strictly o
                     first_token_time = time.time()
                     ttft_ms = int((first_token_time - start_time) * 1000)
                 
+                # Store last chunk to get final token counts
+                last_chunk = chunk
+                
+                # Yield complete sentences for better readability
                 # Yield complete sentences for better readability
                 if any(punct in buffer for punct in ['. ', '! ', '? ', '\n']):
                     # Calculate current performance (cumulative)
@@ -492,29 +555,28 @@ Provide a brief 1-2 sentence insight for this phase of analysis based strictly o
                     tokens_per_sec = token_count / elapsed if elapsed > 0 else 0
                     avg_latency_ms = int((elapsed / token_count) * 1000) if token_count > 0 else 0
                     
-                    performance = {
-                        "ttft_ms": ttft_ms,  # Keep constant after first token
-                        "tokens_per_second": round(tokens_per_sec, 1),
-                        "latency_ms": avg_latency_ms,
-                        "status": "optimal" if tokens_per_sec > 30 else ("degraded" if tokens_per_sec > 15 else "critical"),
-                        "degradation_percent": 0
-                    }
-                    
-                    yield (buffer.strip(), performance)
-                    buffer = ""
+                    # Do NOT yield chunks. Accumulate for final yield only.
+                    # We continue the loop to build full buffer.
+                    pass
             
-            # Yield any remaining content
+            # Extract real token counts from final chunk
+            input_tokens = last_chunk.get('prompt_eval_count', 0) if last_chunk else 0
+            output_tokens = last_chunk.get('eval_count', token_count) if last_chunk else token_count
+            
+            # Yield any remaining content with real token counts
             if buffer.strip():
                 elapsed = time.time() - start_time
-                tokens_per_sec = token_count / elapsed if elapsed > 0 else 0
-                avg_latency_ms = int((elapsed / token_count) * 1000) if token_count > 0 else 0
+                tokens_per_sec = output_tokens / elapsed if elapsed > 0 else 0
+                avg_latency_ms = int((elapsed / output_tokens) * 1000) if output_tokens > 0 else 0
                 
                 performance = {
                     "ttft_ms": ttft_ms,  # Keep constant
                     "tokens_per_second": round(tokens_per_sec, 1),
                     "latency_ms": avg_latency_ms,
                     "status": "optimal" if tokens_per_sec > 30 else ("degraded" if tokens_per_sec > 15 else "critical"),
-                    "degradation_percent": 0
+                    "degradation_percent": 0,
+                    "input_tokens": input_tokens,  # Real input token count from Ollama
+                    "output_tokens": output_tokens  # Real output token count from Ollama
                 }
                 
                 yield (buffer.strip(), performance)
@@ -526,7 +588,9 @@ Provide a brief 1-2 sentence insight for this phase of analysis based strictly o
                 "tokens_per_second": 0.0,
                 "latency_ms": 0,
                 "status": "critical",
-                "degradation_percent": 100
+                "degradation_percent": 100,
+                "input_tokens": 0,
+                "output_tokens": 0
             })
     
     def count_tokens(self, text: str) -> int:

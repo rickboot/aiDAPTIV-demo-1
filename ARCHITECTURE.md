@@ -1,8 +1,25 @@
 # aiDAPTIV+ Demo - Architecture & How It Works
 
+## Business Purpose
+
+**Primary Goal:** Demonstrate that Phison aiDAPTIV+ SSDs enable AI workloads that exceed available RAM, preventing OOM crashes and eliminating the need for expensive cloud GPU instances.
+
+**Target Audience:**
+- IT Directors and System Architects evaluating AI infrastructure
+- Hardware buyers comparing local vs. cloud AI deployment costs
+- Business stakeholders assessing ROI of AI-capable workstations
+
+**Value Proposition:**
+- **Without aiDAPTIV+:** Memory-intensive AI workloads crash (OOM) on standard 16GB systems
+- **With aiDAPTIV+:** Seamless memory offload to SSD enables workloads to complete successfully
+
+---
+
 ## Overview
 
-This demo simulates a **multi-agent competitive intelligence analysis** to showcase aiDAPTIV+'s value in managing memory during model swapping on memory-constrained systems.
+This demo simulates a **high-fidelity competitive intelligence analysis** for CES 2026 to showcase aiDAPTIV+'s value in managing memory during AI workloads on memory-constrained systems.
+
+The simulation processes real market intelligence through a strategic AI agent (@Virtual_PMM) that synthesizes competitor moves, breaking news, and developer signals to construct the "Memory Wall" narrative—validating Phison's market opportunity.
 
 ---
 
@@ -162,7 +179,6 @@ Phase 4 (70%): Swap back to llama3.1:8b
 - `systemState` - Memory usage, model name, total RAM
 - `feed` - Activity feed items
 - `metrics` - Business metrics
-- `impactSummary` - Final results
 
 #### **HardwareMonitor** (`src/components/HardwareMonitor.tsx`)
 - Real-time memory visualization
@@ -184,11 +200,11 @@ The demo simulates a **5-phase multi-agent analysis**:
 
 | Phase | Trigger | Agent | Model | Task |
 |-------|---------|-------|-------|------|
-| 1. Document Review | 5% | @Orchestrator | llama3.1:8b | Survey data sources |
-| 2. Pattern Detection | 15% | @AI_Analyst | qwen2.5:14b | Find UI patterns |
-| 3. Technical Cross-Ref | 50% | @Tech_Specialist | qwen2.5:14b | Match with research |
-| 4. Social Validation | 70% | @Market_Researcher | llama3.1:8b | Check social signals |
-| 5. Synthesis | 90% | @Lead_Strategist | llama3.1:8b | Executive summary |
+| 1. Strategic Dossier | 5% | @Virtual_PMM | llama3.1:8b | Initialize Phison Strategy |
+| 2. News Synthesis | 25% | @Virtual_PMM | llama3.1:8b | Analyze market signals |
+| 3. Social Signal | 50% | @Virtual_PMM | llama3.1:8b | Cross-ref developer pain |
+| 4. Value Formulation| 75% | @Virtual_PMM | llama3.1:8b | Construct Golden Narrative |
+| 5. Final Synthesis | 95% | @Virtual_PMM | llama3.1:8b | Executive Briefing |
 
 **Model Swaps:**
 - Phase 1→2: 8b → 14b (memory +5-7GB)
@@ -272,21 +288,13 @@ if not aidaptiv_enabled and swap_delta > 2.0:
 
 ```python
 SCENARIOS = {
-    "pmm_lite": ScenarioConfig(
-        scenario="pmm",
-        tier="lite",
-        duration_seconds=60,        # 1 minute demo
-        total_documents=18,         # Fewer documents
-        memory_target_gb=10.0,      # Fits in RAM
-        crash_threshold_percent=None  # No crash
-    ),
-    "pmm_large": ScenarioConfig(
-        scenario="pmm",
-        tier="large",
-        duration_seconds=120,       # 2 minute demo
-        total_documents=268,        # Full dataset
-        memory_target_gb=19.0,      # Exceeds 16GB RAM
-        crash_threshold_percent=76.0  # Crashes at 76%
+    "ces2026": ScenarioConfig(
+        scenario="ces2026",
+        tier="standard",
+        duration_seconds=180,       # 3 minute demo
+        total_documents=21,         # CES intelligence feed
+        memory_target_gb=24.0,      # Exceeds 16GB RAM for impact
+        crash_threshold_percent=85.0
     )
 }
 ```
@@ -371,8 +379,7 @@ npm run dev
 | llama3.1:8b load | 1-2s | Fast |
 | qwen2.5:14b load | 5-15s | Slower, visible in demo |
 | Model swap | 7-17s | Offload + load |
-| Lite scenario | 60s | 18 documents |
-| Large scenario | 120s | 268 documents |
+| CES 2026 | 180s | 21 high-fidelity documents |
 
 ---
 

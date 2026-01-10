@@ -76,6 +76,7 @@ class MemoryData(BaseModel):
     context_tokens: int = Field(default=0, ge=0)
     kv_cache_gb: float = Field(default=0.0, ge=0)
     model_weights_gb: float = Field(default=0.0, ge=0)
+    loaded_model: str = Field(default="llama3.1:8b", description="Currently loaded model name")
 
 
 class MemoryEvent(BaseModel):
@@ -89,7 +90,7 @@ class DocumentData(BaseModel):
     name: str
     index: int = Field(..., ge=0)
     total: int = Field(..., gt=0)
-    category: Literal["competitor", "paper", "social", "dossier", "news", "documentation", "video"]
+    category: Literal["competitor", "paper", "social", "dossier", "news", "documentation", "video", "image"]
     size_kb: float = Field(default=50.0, ge=0)
 
 

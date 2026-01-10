@@ -1,0 +1,308 @@
+{
+    "version": "0.31",
+    "profile_name": "aiDAPTIV+ Competitive Intelligence",
+    "identity": {
+        "product_name": "aiDAPTIV+",
+        "owner": "Phison Electronics",
+        "domain": "AI inference and fine-tuning memory management",
+        "one_liner": "aiDAPTIV+ is a memory elasticity layer that uses NVMe flash to extend AI memory so workloads run instead of crashing, especially on devices with limited VRAM/DRAM."
+    },
+    "problem": "GPUs and iGPUs have fixed, limited, expensive memory. Modern AI workloads (LLMs, multimodal, agents) often exceed that memory at inference time, causing OOM crashes, context truncation, disabled features, or forced cloud migration.",
+    "solution": "aiDAPTIV+ provides a slower but much larger memory tier using NVMe flash, enabling larger or more complex workloads to complete locally without OOM failures. It requires no changes to AI application or model code.",
+    "not_a": [
+        "a model optimization technique (not quantization, pruning, or distillation)",
+        "a model itself (not an LLM or vision model)",
+        "a GPU, accelerator, or NPU",
+        "a cloud inference service",
+        "a general-purpose virtual memory or OS swap replacement",
+        "a compiler, runtime, or generic inference engine",
+        "a replacement for DRAM, HBM, or VRAM"
+    ],
+    "complements": [
+        "Model-side techniques: quantization, pruning, distillation, smaller specialized models",
+        "System-level techniques: efficient batching, context window management, KV cache optimizations",
+        "Hardware: GPUs, iGPUs, NPUs, higher-capacity DRAM/VRAM, faster NVMe (especially PCIe Gen5)"
+    ],
+    "competitive_landscape": {
+        "direct_competitors": {
+            "Samsung": {
+                "strengths": "Vertically integrated (own NAND + controllers), strong in enterprise",
+                "positioning": "Premium segment, datacenter focus",
+                "threat_level": "High - developing similar AI-focused controllers"
+            },
+            "Silicon Motion": {
+                "strengths": "Strong in client SSDs, cost-competitive",
+                "positioning": "Developing AI-focused controllers",
+                "threat_level": "Medium - catching up on AI features"
+            },
+            "Marvell": {
+                "strengths": "Enterprise focus, datacenter partnerships",
+                "positioning": "Server/datacenter segment",
+                "threat_level": "Low - different market focus"
+            }
+        },
+        "indirect_competitors": {
+            "NVIDIA": "Datacenter HBM solutions (validates problem, different market segment)",
+            "Apple": "Unified memory architecture (premium segment, validates local AI trend)",
+            "AMD_Intel": "Platform-level memory innovations"
+        }
+    },
+    "partnerships": {
+        "nand_suppliers": {
+            "primary": "Kioxia (strategic investor & shareholder in Phison - provides guaranteed access to cutting-edge 3D NAND, technology roadmap alignment, early access to new NAND generations, and supply chain security that competitors cannot easily replicate)",
+            "secondary": [
+                "Micron",
+                "Samsung"
+            ]
+        },
+        "oem_customers": [
+            "Dell",
+            "HP",
+            "ASUS",
+            "Acer",
+            "Lenovo (AI PC programs)",
+            "Supermicro (workstation/server)"
+        ],
+        "channel_partners": [
+            "Newegg",
+            "Micro Center",
+            "Major distributors (NA, EU, APAC)"
+        ]
+    },
+    "ecosystem": {
+        "hardware_vendors": [
+            "NVIDIA",
+            "AMD",
+            "Intel",
+            "Apple"
+        ],
+        "oems": [
+            "Dell",
+            "HP",
+            "Lenovo",
+            "Acer",
+            "ASUS",
+            "MSI"
+        ],
+        "workstation_vendors": [
+            "Supermicro",
+            "HPE",
+            "Dell",
+            "Lenovo"
+        ],
+        "memory_storage_vendors": [
+            "Samsung",
+            "SK Hynix",
+            "Micron",
+            "Phison",
+            "Kioxia"
+        ],
+        "cloud_providers": [
+            "AWS",
+            "Azure",
+            "Google Cloud",
+            "Oracle",
+            "Lambda",
+            "CoreWeave"
+        ],
+        "software_frameworks": [
+            "vLLM",
+            "TensorRT",
+            "ONNX Runtime",
+            "PyTorch",
+            "Ollama",
+            "LM Studio"
+        ]
+    },
+    "value_props": [
+        "Prevents out-of-memory failures for AI workloads",
+        "Enables larger models and longer context windows on constrained systems",
+        "Makes local and hybrid AI more feasible by raising the memory ceiling without adding DRAM",
+        "Helps OEMs ship AI-capable systems without large DRAM BOM increases",
+        "Cost advantage: Significantly cheaper than GPU memory expansion (NVMe vs HBM economics)",
+        "Privacy: Keep sensitive data local without cloud dependency"
+    ],
+    "analytical_frameworks": {
+        "first_principles": "Apply fundamental reasoning (e.g., 'If Model Size > Client RAM, then Offload is inevitable')",
+        "second_order_effects": "Identify cascading consequences (e.g., DRAM Shortage → Cloud Price Spikes → Forced Edge Migration → aiDAPTIV+ Opportunity)",
+        "invisible_patterns": "Detect market signals others miss by connecting disparate data points (macro economics + micro specs)",
+        "golden_narrative": "Construct the overarching story: Connect NVIDIA's server moves to Intel's client constraints to prove aiDAPTIV+'s necessity",
+        "shift_in_power": "Report not just events, but fundamental changes in market dynamics and competitive positioning"
+    },
+    "strategic_imperatives_2026": {
+        "opportunities": [
+            "DRAM Shortage Arbitrage: Position aiDAPTIV+ as solution to PC memory constraints",
+            "OEM Partnership Deepening: Leverage supply chain security concerns",
+            "Kioxia Partnership Leverage: Unique supply chain security and technology access via strategic investment relationship (competitive moat vs Samsung/Silicon Motion)",
+            "Market Education: Evangelize SSD-based memory offload as viable architecture",
+            "AI PC Wave: Ride the AI PC adoption curve with memory elasticity messaging"
+        ],
+        "threats": [
+            "Competitor Innovation: Samsung/Silicon Motion developing similar technologies",
+            "Memory Price Volatility: Rapid DRAM price drops could reduce aiDAPTIV+ appeal",
+            "Platform Shifts: Apple-style unified memory becoming standard",
+            "Cloud Cost Reductions: Sustained decreases in cloud inference pricing"
+        ],
+        "key_metrics": [
+            "Market Validation: Industry acknowledgment of memory bottleneck",
+            "Partner Engagement: OEM design wins, co-marketing opportunities",
+            "Competitive Positioning: Maintain technology leadership vs Samsung/Silicon Motion"
+        ]
+    },
+    "signals": {
+        "high_relevance": [
+            "DRAM/HBM price changes, shortages, or allocation shifts",
+            "New AI PCs/workstations with limited DRAM/VRAM",
+            "Announcements about local or hybrid AI features on PCs, workstations, or edge devices",
+            "New models emphasizing long context, multimodal, agents, or multi-model setups",
+            "Benchmarks or reports highlighting memory bottlenecks or VRAM limits",
+            "Tools/frameworks promoting local inference and agents",
+            "Policies or regulations increasing pressure for local processing or data locality",
+            "Competitor moves by Samsung, Silicon Motion, or Marvell in AI storage",
+            "OEM announcements about AI PC memory configurations"
+        ],
+        "potential_headwinds": [
+            "Large, sustained reductions in cloud inference cost",
+            "Major breakthroughs that dramatically reduce memory needs for typical workloads",
+            "DRAM price crashes making memory expansion cheap",
+            "Unified memory architectures becoming mainstream"
+        ]
+    },
+    "heuristics": [
+        "If an item increases or highlights memory pressure for AI, mark it as high relevance",
+        "If it emphasizes DRAM/HBM scarcity or cost, mark as high relevance",
+        "If it promotes local or hybrid inference, mark as high relevance",
+        "If it announces AI PC/workstation designs with tight DRAM/VRAM, mark as high relevance",
+        "If it significantly improves cloud economics, mark as relevant as a possible headwind",
+        "If it involves Samsung, Silicon Motion, or Marvell in AI/storage, mark as competitive intelligence",
+        "If it validates the memory bottleneck thesis, mark as market validation signal"
+    ],
+    "guardrails": {
+        "forbidden_claims": [
+            "aiDAPTIV+ replaces DRAM or HBM",
+            "aiDAPTIV+ makes SSD as fast as VRAM/HBM",
+            "aiDAPTIV+ eliminates latency",
+            "aiDAPTIV+ solves all AI performance problems"
+        ],
+        "caution": [
+            "Do not confuse aiDAPTIV+ with quantization, model compression, cloud providers, or accelerators",
+            "Do not invent performance numbers without explicit source data",
+            "Acknowledge trade-offs: latency increases in exchange for capacity",
+            "Be conservative with competitive claims unless backed by specific evidence",
+            "Competitive assessments reflect internal analysis, not confirmed product parity",
+            "Do not claim exclusive or guaranteed supply unless explicitly announced",
+            "Do not frame aiDAPTIV+ as required for AI PCs; it is an enabling option"
+        ]
+    },
+    "evidence_types": {
+        "purpose": "Convert signals into validated observations by weighting evidence quality.",
+        "tiers": {
+            "tier_1_hard_evidence": [
+                "OEM SKU specifications (memory configs, BOMs)",
+                "Design wins or announced partnerships",
+                "Pricing sheets (cloud GPU, DRAM, HBM, SSD)",
+                "Allocation notices or supply constraint disclosures",
+                "Benchmarks with reproducible configs",
+                "Regulatory filings (10-K, earnings calls, government disclosures)",
+                "Shipping products or GA announcements"
+            ],
+            "tier_2_soft_but_credible": [
+                "Analyst reports (Gartner, IDC, SemiAnalysis, etc.)",
+                "Executive quotes tied to concrete constraints (memory, cost, supply)",
+                "Technical blog posts from vendors or OSS maintainers",
+                "Conference talks with architectural detail",
+                "Roadmap disclosures with timelines"
+            ],
+            "tier_3_weak_signals": [
+                "Marketing blogs without specs",
+                "Vision statements with no constraints mentioned",
+                "Influencer commentary without data",
+                "Social media speculation",
+                "Unverified leaks or rumors"
+            ]
+        },
+        "agent_rules": [
+            "Prefer Tier 1 > Tier 2 > Tier 3 when summarizing impact",
+            "If only Tier 3 exists, label impact neutral_or_unclear and call it speculative",
+            "Do not convert weak signals into firm conclusions",
+            "Explicitly cite evidence type in summaries (e.g., SKU specs, earnings call)"
+        ]
+    },
+    "actor_incentives": {
+        "purpose": "Predict behavior by modeling incentives and conflicts, not just announcements.",
+        "incentives": {
+            "gpu_accelerator_vendors": [
+                "Maximize attach rate of premium memory and higher-tier SKUs",
+                "Push customers up the stack (bigger GPUs, bigger systems)",
+                "Frame bottlenecks as solvable with their hardware"
+            ],
+            "dram_hbm_vendors": [
+                "Prioritize supply to highest-margin segments (AI, datacenter)",
+                "Keep scarcity narrative favorable to pricing",
+                "Avoid commoditization of memory capacity"
+            ],
+            "ssd_nand_ecosystem": [
+                "Expand SSD value beyond storage into performance-critical paths",
+                "Increase value per GB vs raw capacity pricing",
+                "Enable new architectures that consume more NAND"
+            ],
+            "pc_workstation_oems": [
+                "Maintain BOM stability and predictable margins",
+                "Avoid SKU explosion from DRAM-heavy configs",
+                "Ship AI-capable systems without absorbing memory cost shocks"
+            ],
+            "cloud_providers": [
+                "Increase usage, lock-in, and long-term ARPU",
+                "Discourage local alternatives when economically feasible",
+                "Compete on price only when necessary"
+            ],
+            "enterprises_governments": [
+                "Control data locality and privacy",
+                "Reduce long-term operating costs",
+                "Build domestic or on-prem AI capability"
+            ],
+            "developers_power_users": [
+                "Run larger models locally",
+                "Avoid artificial constraints (context limits, disabled features)",
+                "Optimize for control, experimentation speed, and cost"
+            ]
+        },
+        "agent_rules": [
+            "Ask: who benefits if this becomes true?",
+            "Treat announcements as incentive-aligned narratives, not neutral facts",
+            "Flag incentive conflicts explicitly (cloud vs OEM, GPU vendor vs SSD vendor)",
+            "Use incentives to infer second-order effects and likely next moves"
+        ]
+    },
+    "output_behavior": {
+        "summary_requirements": [
+            "Describe what happened, who is involved, and why it matters for aiDAPTIV+ in simple English",
+            "Use Executive Briefing Grade language - high signal-to-noise ratio",
+            "Apply analytical frameworks (First Principles, Second-Order Effects) when relevant",
+            "Call out evidence tier when possible"
+        ],
+        "classification": {
+            "categories": [
+                "DRAM/HBM",
+                "AI PC/Workstation",
+                "Local AI",
+                "Cloud vs Local Economics",
+                "Model/Workload Trend",
+                "OSS/Framework",
+                "Policy/Regulation",
+                "Competitive Intelligence",
+                "Other"
+            ],
+            "impact": [
+                "opportunity",
+                "headwind",
+                "neutral_or_unclear"
+            ]
+        },
+        "explanation": [
+            "Explicitly connect each item back to memory pressure, local vs cloud, AI PC/workstation context, or related factors",
+            "Identify Shift in Power implications when applicable",
+            "Note Second-Order Effects if present"
+        ]
+    }
+}

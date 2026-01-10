@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { CompleteEvent, FeedItem, MemoryEvent, PerformanceMetrics, Scenario, StatusEvent, SystemState, ThoughtEvent, PerformanceEvent, ImpactSummaryEvent, ImpactSummaryData, WorldModelItem, CrashEvent, CrashData } from './types';
-import { SCENARIOS, INITIAL_WORLD_MODEL, INITIAL_METRICS } from './mockData';
+import type { FeedItem, SystemState, PerformanceMetrics, Scenario, WorldModelItem, CrashData, CrashEvent, ImpactSummaryData } from './types';
+import { SCENARIOS, INITIAL_METRICS } from './mockData';
 
 interface Metrics {
     key_topics: number;
@@ -21,19 +21,22 @@ interface ScenarioContextType {
     setActiveScenario: (id: string) => void;
     isAnalysisRunning: boolean;
     analysisState: 'running' | 'completed' | 'idle' | 'crashed';
-    impactSummary: ImpactSummaryData | null;
     crashDetails: CrashData | null;
     startAnalysis: () => Promise<void>;
     stopAnalysis: () => void;
     showHardwareMonitor: boolean;
     toggleMonitor: () => void;
-    isSuccess: boolean;
     isComplete: boolean;
-    showResults: () => void;
-    closeResults: () => void;
     resetAnalysis: () => void;
     tier: 'lite' | 'large';
     setTier: (tier: 'lite' | 'large') => void;
+    currentTier: string;
+    enabledFeatures: string[];
+    upgradeMessage: string;
+    elapsedSeconds: number;
+    impactSummary: ImpactSummaryData | null;
+    backendConnected: boolean;
+    backendError: string | null;
 }
 
 const ScenarioContext = createContext<ScenarioContextType | undefined>(undefined);
@@ -42,18 +45,26 @@ const WS_URL = 'ws://localhost:8000/ws/analysis';
 
 export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     // STATE
-    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[2]); // CES 2026 is index 2
+    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[0]); // CES 2026 is now the only scenario
     const [feed, setFeed] = useState<FeedItem[]>(activeScenario.initialFeed);
     const [worldModel, setWorldModel] = useState<WorldModelItem[]>([]); // Start empty, populate dynamically
     const [metrics, setMetrics] = useState<Metrics>(INITIAL_METRICS);
 
     const [isAnalysisRunning, setIsAnalysisRunning] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
     const [isComplete, setIsComplete] = useState(false);
     const [isCrashed, setIsCrashed] = useState(false);
 
     const [showHardwareMonitor, setShowHardwareMonitor] = useState(true); // Enabled by default for dev
     const [tier, setTierState] = useState<'lite' | 'large'>('lite'); // Default to lite for faster demos
+
+    // Multi-modal tier state
+    const [currentTier, setCurrentTier] = useState<string>('text_only');
+    const [enabledFeatures, setEnabledFeatures] = useState<string[]>(['text_analysis']);
+    const [upgradeMessage, setUpgradeMessage] = useState<string>('');
+
+    // Elapsed time tracking
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [analysisStartTime, setAnalysisStartTime] = useState<number | null>(null);
 
     const INITIAL_PERFORMANCE: PerformanceMetrics = {
         ttft_ms: 0,
@@ -64,19 +75,27 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     };
     const [performance, setPerformance] = useState<PerformanceMetrics>(INITIAL_PERFORMANCE);
 
-    const [impactSummary, setImpactSummary] = useState<ImpactSummaryData | null>(null);
     const [crashDetails, setCrashDetails] = useState<CrashData | null>(null);
 
     const [currentActivity, setCurrentActivity] = useState<string>('Idle');
+    const [impactSummary, setImpactSummary] = useState<ImpactSummaryData | null>(null);
+    const [backendConnected, setBackendConnected] = useState(true);
+    const [backendError, setBackendError] = useState<string | null>(null);
 
-    const [systemState, setSystemState] = useState<SystemState>({
+    // Define INITIAL_SYSTEM_STATE
+    const INITIAL_SYSTEM_STATE: SystemState = {
         vramUsage: 0,
         totalMemory: 16,
-        ramUsage: 16.0,
+        ramUsage: 0, // Changed from 16.0 to 0 as per instruction's implied change
         ssdUsage: 0,
-        isAidaptivEnabled: false,
-        modelName: 'Llama-3-70B'
-    });
+        isAidaptivEnabled: true,  // ENABLED BY DEFAULT FOR DEVELOPMENT
+        context_tokens: 0,
+        kv_cache_gb: 0,
+        model_weights_gb: 0,
+        loaded_model: 'llama3.1:8b',  // Track which model is loaded
+        modelName: 'Llama-3-70B' // Keep existing modelName
+    };
+    const [systemState, setSystemState] = useState<SystemState>(INITIAL_SYSTEM_STATE);
 
     // WebSocket ref
     const wsRef = useRef<WebSocket | null>(null);
@@ -109,10 +128,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setIsAnalysisRunning(false);
-        setIsSuccess(false);
-        setIsComplete(false);
-        setIsCrashed(false);
-        setImpactSummary(null);
         setCrashDetails(null);
         setSystemState(prev => ({ ...prev, vramUsage: 0, ramUsage: 16.0, ssdUsage: 0 }));
         setWorldModel([]); // Clear to repopulate dynamically
@@ -122,15 +137,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         setCurrentActivity('Idle');
     };
 
-    const showResults = () => {
-        setIsSuccess(true);
-    };
-
-    const closeResults = () => {
-        // Just close the overlay, don't reset anything
-        setIsSuccess(false);
-        setIsComplete(false);
-    };
 
     const toggleMonitor = () => setShowHardwareMonitor(prev => !prev);
 
@@ -141,8 +147,16 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const toggleAidaptiv = () => {
+        console.log('toggleAidaptiv called, isAnalysisRunning:', isAnalysisRunning);
+        console.log('Current isAidaptivEnabled:', systemState.isAidaptivEnabled);
         if (!isAnalysisRunning) {
-            setSystemState(prev => ({ ...prev, isAidaptivEnabled: !prev.isAidaptivEnabled }));
+            setSystemState(prev => {
+                const newState = { ...prev, isAidaptivEnabled: !prev.isAidaptivEnabled };
+                console.log('Setting new isAidaptivEnabled:', newState.isAidaptivEnabled);
+                return newState;
+            });
+        } else {
+            console.log('Toggle blocked - analysis is running');
         }
     };
 
@@ -162,6 +176,8 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 }
             } catch (error) {
                 console.error('Failed to fetch system info:', error);
+                setBackendConnected(false);
+                setBackendError('Backend not responding. Make sure the backend server is running on port 8000.');
             }
         };
         fetchSystemInfo();
@@ -184,20 +200,59 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 }
             } catch (error) {
                 console.error('Failed to fetch current memory:', error);
+                setBackendConnected(false);
+                setBackendError('Backend not responding. Make sure the backend server is running on port 8000.');
             }
         };
         fetchCurrentMemory();
     }, []);
 
+    // Fetch capabilities on mount and when aiDAPTIV+ changes
+    useEffect(() => {
+        const fetchCapabilities = async () => {
+            try {
+                const response = await fetch(`http://localhost:8000/api/capabilities?aidaptiv_enabled=${systemState.isAidaptivEnabled}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Capabilities:', data);
+                    setCurrentTier(data.tier);
+                    setEnabledFeatures(data.enabled_features || []);
+                    setUpgradeMessage(data.upgrade_message || '');
+                }
+            } catch (error) {
+                console.error('Failed to fetch capabilities:', error);
+            }
+        };
+        fetchCapabilities();
+    }, [systemState.isAidaptivEnabled]);
+
+    // Elapsed time counter
+    useEffect(() => {
+        if (!analysisStartTime) {
+            return;
+        }
+
+        // Only update if analysis is running
+        if (!isAnalysisRunning) {
+            return;
+        }
+
+        const interval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - analysisStartTime) / 1000);
+            setElapsedSeconds(elapsed);
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [isAnalysisRunning, analysisStartTime]);
+
     const startAnalysis = async () => {
         if (isAnalysisRunning) return;
         setIsAnalysisRunning(true);
         setIsComplete(false);
-        setIsSuccess(false);
-        setIsCrashed(false);
-        setImpactSummary(null);
         setCrashDetails(null);
         setCurrentActivity('Initializing analysis...');
+        setAnalysisStartTime(Date.now());
+        setElapsedSeconds(0);
 
         if (activeScenario.id.includes('large')) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate connection delay for large
@@ -258,22 +313,33 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         }
         setIsAnalysisRunning(false);
         setCurrentActivity('Analysis stopped');
+        setAnalysisStartTime(null);
     };
 
     // Handle WebSocket messages
     const handleWebSocketMessage = (message: any) => {
         switch (message.type) {
             case 'init':
-                // Initialize world model with placeholders - don't show size/type until processed
+                // Initialize world model with placeholders - detect type from filename
                 if (message.data.documents) {
-                    const initialModel = message.data.documents.map((doc: any, index: number) => ({
-                        id: `doc-${index}`,
-                        type: 'text_document', // Generic placeholder
-                        title: doc.name,
-                        memorySize: 0, // Don't show size until processed
-                        lastAccessed: Date.now(),
-                        status: 'pending'
-                    }));
+                    const initialModel = message.data.documents.map((doc: any, index: number) => {
+                        // Detect type from filename
+                        let type = 'text_document';
+                        if (doc.name.endsWith('.png') || doc.name.endsWith('.jpg') || doc.name.endsWith('.jpeg')) {
+                            type = 'screenshot';
+                        } else if (doc.name.includes('video') || doc.name.includes('transcript')) {
+                            type = 'video_transcript';
+                        }
+
+                        return {
+                            id: `doc-${index}`,
+                            type: type,
+                            title: doc.name,
+                            memorySize: 0, // Don't show size until processed
+                            lastAccessed: Date.now(),
+                            status: 'pending'
+                        };
+                    });
                     setWorldModel(initialModel);
                 }
                 break;
@@ -306,7 +372,8 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                     ssdUsage: message.data.virtual_gb,
                     context_tokens: message.data.context_tokens || 0,
                     kv_cache_gb: message.data.kv_cache_gb || 0,
-                    model_weights_gb: message.data.model_weights_gb || 0
+                    model_weights_gb: message.data.model_weights_gb || 0,
+                    loaded_model: message.data.loaded_model || prev.loaded_model
                 }));
                 break;
 
@@ -322,6 +389,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                         switch (category) {
                             case 'competitor': return 'screenshot';
                             case 'paper': return 'pdf_embedding';
+                            case 'image': return 'screenshot'; // Images show as screenshots
                             case 'video': return 'video_transcript';
                             case 'dossier':
                             case 'news':
@@ -357,6 +425,10 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 });
                 break;
 
+            case 'impact_summary':
+                setImpactSummary(message.data);
+                break;
+
             case 'performance':
                 // Update performance metrics
                 setPerformance(message.data);
@@ -376,9 +448,16 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 break;
 
             case 'complete':
-                // Analysis complete
+                // Analysis complete - preserve final elapsed time
                 setCurrentActivity('Analysis complete');
                 console.log('Simulation complete:', message.data);
+
+                // Calculate final elapsed time before stopping
+                if (analysisStartTime) {
+                    const finalElapsed = Math.floor((Date.now() - analysisStartTime) / 1000);
+                    setElapsedSeconds(finalElapsed);
+                }
+
                 setIsComplete(true);
                 setIsAnalysisRunning(false);
                 if (wsRef.current) {
@@ -403,10 +482,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 }
                 break;
 
-            case 'impact_summary':
-                const impactEvent = message as ImpactSummaryEvent;
-                setImpactSummary(impactEvent.data);
-                break;
 
             default:
                 console.warn('Unknown message type:', message.type);
@@ -435,19 +510,22 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             setActiveScenario,
             isAnalysisRunning,
             analysisState: isAnalysisRunning ? 'running' : (isCrashed ? 'crashed' : (isComplete ? 'completed' : 'idle')),
-            impactSummary,
             crashDetails,
+            isComplete,
             startAnalysis,
             stopAnalysis,
             showHardwareMonitor,
             toggleMonitor,
-            isSuccess,
-            isComplete,
-            showResults,
-            closeResults,
             resetAnalysis,
             tier,
-            setTier
+            setTier,
+            currentTier,
+            enabledFeatures,
+            upgradeMessage,
+            elapsedSeconds,
+            impactSummary,
+            backendConnected,
+            backendError
         }}>
             {children}
         </ScenarioContext.Provider>

@@ -50,20 +50,20 @@ async def websocket_analysis(websocket: WebSocket):
         stop_monitor = asyncio.Event()
         
         async def continuous_memory_monitor():
-            """Continuously broadcast memory telemetry at 5Hz."""
+            """Continuously broadcast memory telemetry at 1Hz (reduced from 5Hz to prevent Mac lag)."""
             memory_monitor = orchestrator.memory_monitor
             while not stop_monitor.is_set():
                 try:
                     memory_data, _ = memory_monitor.calculate_memory()
                     event = MemoryEvent(data=memory_data).model_dump()
                     await websocket.send_json(event)
-                    await asyncio.sleep(0.2)  # 5Hz
+                    await asyncio.sleep(1.0)  # 1Hz - reduced from 0.2s (5Hz) to prevent psutil overhead
                 except Exception as e:
                     logger.error(f"Memory monitor error: {e}")
                     break
         
         monitor_task = asyncio.create_task(continuous_memory_monitor())
-        logger.info("Started continuous memory monitor (5Hz)")
+        logger.info("Started continuous memory monitor (1Hz)")
         
         # 4. STREAM SIMULATION EVENTS
         async for event in orchestrator.run_simulation():

@@ -31,6 +31,7 @@ class MemoryMonitor:
         
         # Context and model tracking
         self.context_tokens = 0
+        self.current_model_name = "llama3.1:8b"
         self.current_model_size_gb = 5.0  # Default: llama3.1:8b
         
     def set_context_size(self, tokens: int):
@@ -39,10 +40,13 @@ class MemoryMonitor:
     
     def set_model_size(self, model_name: str):
         """Update current model size based on model name."""
+        self.current_model_name = model_name
         model_sizes = {
             "llama3.1:8b": 5.0,
             "qwen2.5:14b": 9.0,
             "qwen2.5:32b": 19.0,
+            "llava:13b": 8.0,
+            "llava:34b": 20.0,
             "llava": 4.7
         }
         self.current_model_size_gb = model_sizes.get(model_name, 5.0)
@@ -106,7 +110,8 @@ class MemoryMonitor:
             virtual_active=virtual_active,
             context_tokens=self.context_tokens,
             kv_cache_gb=kv_cache_gb,
-            model_weights_gb=self.current_model_size_gb
+            model_weights_gb=self.current_model_size_gb,
+            loaded_model=self.current_model_name
         )
         
         return memory_data, should_crash

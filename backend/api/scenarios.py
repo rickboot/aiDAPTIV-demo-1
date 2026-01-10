@@ -4,13 +4,19 @@ REST API endpoints for scenario management.
 
 import psutil
 import platform
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from models.schemas import (
     HealthResponse, SystemInfo, ScenarioListResponse, ScenarioListItem,
     StartSimulationResponse, SimulationRequest
 )
+from services.memory_tier_manager import MemoryTierManager
+from services.image_gen_service import ImageGenService
 
 router = APIRouter(prefix="/api")
+
+# Initialize services
+memory_tier_manager = MemoryTierManager()
+image_gen_service = ImageGenService()
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -64,9 +70,9 @@ async def list_scenarios():
     """List available scenarios."""
     scenarios = [
         ScenarioListItem(
-            id="pmm",
-            name="PMM Competitive Intelligence",
-            tiers=["lite", "large"]
+            id="ces2026",
+            name="CES 2026 Intelligence Platform",
+            tiers=["standard"]
         )
     ]
     return ScenarioListResponse(scenarios=scenarios)
@@ -86,3 +92,118 @@ async def start_simulation(request: SimulationRequest):
         tier=request.tier,
         aidaptiv_enabled=request.aidaptiv_enabled
     )
+
+
+@router.get("/capabilities")
+async def get_capabilities(aidaptiv_enabled: bool = False):
+    """
+    Get available features based on system memory and aiDAPTIV+ status.
+    
+    Args:
+        aidaptiv_enabled: Whether aiDAPTIV+ is enabled
+        
+    Returns:
+        Dict with tier info and available features
+    """
+    tier = memory_tier_manager.detect_tier(aidaptiv_enabled)
+    tier_info = memory_tier_manager.get_tier_info(tier)
+    tier_info["upgrade_message"] = memory_tier_manager.get_upgrade_message(tier)
+    return tier_info
+
+
+@router.post("/analyze/image")
+async def analyze_image(
+    file: UploadFile = File(...),
+    prompt: str = "Analyze this image and describe what you see"
+):
+    """
+    Analyze an uploaded image using LLaVA.
+    
+    Args:
+        file: Uploaded image file
+        prompt: Analysis prompt
+        
+    Returns:
+        Analysis results
+    """
+    # Save uploaded file temporarily
+    import tempfile
+    from pathlib import Path
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    # Analyze image
+    result = await vision_service_13b.analyze_image(tmp_path, prompt)
+    
+    # Clean up temp file
+    Path(tmp_path).unlink()
+    
+    return result
+
+
+@router.post("/analyze/video")
+async def analyze_video(
+    file: UploadFile = File(...),
+    prompt: str = "Analyze this video and summarize the key points",
+    max_frames: int = 10
+):
+    """
+    Analyze an uploaded video using LLaVA.
+    
+    Args:
+        file: Uploaded video file
+        prompt: Analysis prompt
+        max_frames: Maximum number of frames to analyze
+        
+    Returns:
+        Video analysis results
+    """
+    # Save uploaded file temporarily
+    import tempfile
+    from pathlib import Path
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=Path(file.filename).suffix) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+    
+    # Analyze video
+    result = await vision_service_34b.analyze_video(tmp_path, prompt, max_frames)
+    
+    # Clean up temp file
+    Path(tmp_path).unlink()
+    
+    return result
+
+
+@router.post("/generate/infographic")
+async def generate_infographic(findings: dict):
+    """
+    Generate an executive summary infographic from analysis findings.
+    
+    Args:
+        findings: Dict containing analysis results
+        
+    Returns:
+        Path to generated infographic
+    """
+    image_path = await image_gen_service.generate_infographic(findings)
+    return {"image_url": image_path, "status": "generated"}
+
+
+@router.post("/generate/timeline")
+async def generate_timeline(historical_data: list):
+    """
+    Generate a trend timeline visualization.
+    
+    Args:
+        historical_data: List of historical events/data points
+        
+    Returns:
+        Path to generated timeline
+    """
+    image_path = await image_gen_service.generate_timeline(historical_data)
+    return {"image_url": image_path, "status": "generated"}

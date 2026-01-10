@@ -35,6 +35,10 @@ export interface SystemState {
     ssdUsage: number; // in GB
     isAidaptivEnabled: boolean;
     modelName: string;
+    context_tokens?: number;
+    kv_cache_gb?: number;
+    model_weights_gb?: number;
+    loaded_model?: string;
 }
 
 export interface PerformanceMetrics {

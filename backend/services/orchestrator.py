@@ -18,7 +18,11 @@ from models.schemas import (
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
 from services.ollama_service import OllamaService, ANALYSIS_PHASES, ANALYSIS_PHASES_CES
-import config
+from services.image_gen_service import ImageGenService
+from services.memory_tier_manager import MemoryTierManager
+from sgp_config.sgp_loader import SGPLoader
+import config as app_config
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +173,9 @@ class SimulationOrchestrator:
         self.aidaptiv_enabled = aidaptiv_enabled
         self.memory_monitor = MemoryMonitor(self.config, aidaptiv_enabled)
         
-        # Metrics tracking
+        # Base directory for documents
+        self.doc_dir = Path(__file__).parent.parent.parent / "documents" / scenario
+        
         # Metrics tracking
         self.metrics = {
             "key_topics": 0,
@@ -178,11 +184,36 @@ class SimulationOrchestrator:
             "critical_flags": 0
         }
         
+        # Token tracking for TCO/billing (separate from memory usage)
+        self.cumulative_input_tokens = 0
+        self.cumulative_output_tokens = 0
+        
         # Thought phase tracking
         self.thoughts_sent = set()
         
+        # Multi-modal services
+        self.memory_tier_manager = MemoryTierManager()
+        self.current_tier = self.memory_tier_manager.detect_tier(aidaptiv_enabled)
+        self.image_gen_service = None
+        if self.current_tier == "pro":
+            self.image_gen_service = ImageGenService()
+        
+        logger.info(f"Initialized with tier: {self.current_tier}, aiDAPTIV+: {aidaptiv_enabled}")
+        
+        # Load Semantic Grounding Profile
+        sgp_path = Path(__file__).parent.parent / "sgp_config" / "sgp_aidaptiv_competitive_intel.json"
+        self.sgp_loader = None
+        if sgp_path.exists():
+            try:
+                self.sgp_loader = SGPLoader(str(sgp_path))
+                logger.info(f"Loaded SGP: {self.sgp_loader.sgp.get('profile_name', 'Unknown')}")
+            except Exception as e:
+                logger.warning(f"Failed to load SGP: {e}")
+        else:
+            logger.warning(f"SGP file not found: {sgp_path}")
+        
         # Ollama integration
-        self.use_ollama = config.USE_REAL_OLLAMA
+        self.use_ollama = app_config.USE_REAL_OLLAMA
         self.ollama_service = None
         self.ollama_context = None
         
@@ -194,14 +225,16 @@ class SimulationOrchestrator:
         self.current_progress = 0.0
         
         if self.use_ollama:
-            self.ollama_service = OllamaService(config.OLLAMA_HOST, config.OLLAMA_MODEL)
+            self.ollama_service = OllamaService(app_config.OLLAMA_HOST, app_config.OLLAMA_MODEL)
             available, error_msg = self.ollama_service.check_availability()
             if not available:
-                logger.warning(f"Ollama not available: {error_msg}")
-                logger.warning("Falling back to canned responses")
-                self.use_ollama = False
+                error_message = f"Ollama is required but not available: {error_msg}"
+                logger.error(error_message)
+                logger.error("Start Ollama with: ollama serve")
+                logger.error("Then ensure models are available: ollama pull llama3.1:8b && ollama pull llava:13b")
+                raise RuntimeError(error_message)
             else:
-                logger.info(f"Ollama enabled with model: {config.OLLAMA_MODEL}")
+                logger.info(f"Ollama enabled with model: {app_config.OLLAMA_MODEL}")
                 # Load documents
                 try:
                     documents = self.ollama_service.load_documents(scenario, tier)
@@ -213,8 +246,8 @@ class SimulationOrchestrator:
                     self.memory_monitor.set_context_size(context_tokens)
                     self.memory_monitor.set_model_size(self.current_model)
                 except Exception as e:
-                    logger.warning("Falling back to canned responses")
-                    self.use_ollama = False
+                    logger.error(f"Failed to load documents: {e}")
+                    raise RuntimeError(f"Failed to initialize Ollama service: {e}")
         
     async def _wait_with_telemetry(self, duration: float) -> AsyncGenerator[dict, None]:
         """
@@ -284,6 +317,7 @@ class SimulationOrchestrator:
         
         # Track processed documents for dynamic context
         self.processed_documents = []
+        docs_in_current_batch = 0
         
         for doc_index in range(total_docs):
             current_doc = documents[doc_index]
@@ -291,11 +325,21 @@ class SimulationOrchestrator:
             
             prev_doc = documents[doc_index - 1] if doc_index > 0 else None
             
-            # Dynamic Processing Status based on category change
-            if doc_index == 0:
-                 yield {"type": "status", "message": "Loading Strategic Dossiers..."}
+            # Emit category transition status messages
+            if prev_doc is None:
+                # First document
+                if current_doc['category'] == 'image':
+                    yield {"type": "status", "message": "Loading image data for visual analysis..."}
+                elif current_doc['category'] == 'dossier':
+                    yield {"type": "status", "message": "Loading Strategic Dossiers..."}
+                elif current_doc['category'] == 'news':
+                    yield {"type": "status", "message": "Ingesting CES News Feed..."}
             elif prev_doc and current_doc['category'] != prev_doc['category']:
-                if current_doc['category'] == 'news':
+                if current_doc['category'] == 'image':
+                    yield {"type": "status", "message": "Loading image data for visual analysis..."}
+                elif current_doc['category'] == 'dossier':
+                    yield {"type": "status", "message": "Loading Strategic Dossiers..."}
+                elif current_doc['category'] == 'news':
                     yield {"type": "status", "message": "Ingesting CES News Feed..."}
                 elif current_doc['category'] == 'social':
                     yield {"type": "status", "message": "Monitoring Social Channels..."}
@@ -309,6 +353,10 @@ class SimulationOrchestrator:
             # 1. SEND DOCUMENT EVENT
             doc_event = self._create_document_event(current_doc, doc_index, total_docs)
             yield doc_event.model_dump()
+            
+            # Context growth is now tracked from real LLM responses only (no simulation)
+            # doc_tokens = 200
+            # self.memory_monitor.set_context_size(self.memory_monitor.context_tokens + doc_tokens)
             
             # 2. SEND MEMORY EVENT
             memory_data, should_crash = self.memory_monitor.calculate_memory()
@@ -336,24 +384,35 @@ class SimulationOrchestrator:
                 return  # Stop simulation
             
             
-            # 5. SEND THOUGHT EVENTS (LLM-based or canned)
-            async for thought_event in self._generate_llm_thought(progress_percent):
-                yield thought_event
-                
-                # Simulate context growth: each thought adds ~500-1000 tokens
-                if thought_event.get('type') == 'thought':
-                    thought_text = thought_event.get('data', {}).get('text', '')
-                    # Rough estimate: 4 chars per token
-                    tokens_added = len(thought_text) // 4
-                    current_tokens = self.memory_monitor.context_tokens
-                    self.memory_monitor.set_context_size(current_tokens + tokens_added)
+            # 5. CHECK FOR AGENT TRIGGER (Event-Driven)
+            # Trigger when we finish a category (batch processing) OR every 4 documents
+            next_doc = documents[doc_index + 1] if doc_index + 1 < total_docs else None
+            docs_in_current_batch += 1
             
-            # Simulate context growth: each document adds to cumulative context
-            # In real agentic systems, documents stay in context for future agents
-            # Increase to 200 tokens per doc for dramatic growth (lite: 4.5K→8K, large: 8K→60K)
-            doc_tokens = 200  # Aggressive growth to show KV cache pressure
-            current_tokens = self.memory_monitor.context_tokens
-            self.memory_monitor.set_context_size(current_tokens + doc_tokens)
+            is_batch_complete = False
+            
+            if next_doc is None: # Last doc
+                is_batch_complete = True
+            elif current_doc['category'] != next_doc['category']:
+                is_batch_complete = True
+            elif current_doc['category'] == 'image':  # Process images individually for llava
+                is_batch_complete = True
+            elif current_doc['category'] == 'video':  # Process video individually for vision
+                is_batch_complete = True
+            elif docs_in_current_batch >= 4: # Granular processing to prevent signal loss
+                is_batch_complete = True
+            
+            if is_batch_complete:
+                logger.info(f"Triggering Agent Cycle. Documents in batch: {docs_in_current_batch}, Category: {current_doc['category']}")
+                docs_in_current_batch = 0
+                
+                # Yield status update
+                yield StatusEvent(message=f"Analyzing {current_doc['category']} data...").model_dump()
+                
+                # Run the Agent Cycle for this category
+                async for agent_event in self._run_agent_cycle(current_doc['category'], current_doc):
+                    yield agent_event
+
             
             # 6. SEND METRIC UPDATES (periodically)
             if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
@@ -361,18 +420,183 @@ class SimulationOrchestrator:
                 for metric_event in metric_events:
                     yield metric_event.model_dump()
             
-            # 7. WAIT FOR NEXT TICK
-            async for event in self._wait_with_telemetry(interval):
-                yield event
+            # 7. WAIT FOR NEXT TICK (only if not about to run agent cycle)
+            if not is_batch_complete:
+                async for event in self._wait_with_telemetry(interval):
+                    yield event
 
         
         # SIMULATION COMPLETE
-        complete_event = self._create_complete_event(memory_data)
-        yield complete_event.model_dump()
+        yield StatusEvent(message="Analysis Finalized").model_dump()
+    
+    # ... (helper methods) ...
+
+    async def _get_model_for_category(self, category: str, doc: dict = None) -> str:
+        """
+        Get the appropriate model for a category based on current tier.
+        Refinement: Treat text-based video transcripts as text analysis.
+        """
+        tier_models = self.memory_tier_manager.get_models_for_tier(self.current_tier)
         
-        # SEND IMPACT SUMMARY
-        impact_summary = self._create_impact_summary(total_docs, memory_data, duration)
-        yield impact_summary.model_dump()
+        if category == 'image':
+            # Pro: llava:34b, Standard: llava:13b
+            return tier_models.get('image_analysis', 'llava:13b')
+        elif category == 'video':
+            # If it's a transcript (.txt), use text model. If it's a real video/frames, use vision.
+            if doc and doc.get('name', '').lower().endswith('.txt'):
+                return tier_models.get('text_analysis', 'llama3.1:8b')
+            # Fallback to vision model for video category if not clearly a transcript
+            return tier_models.get('video_analysis', tier_models.get('image_analysis', 'llava:13b'))
+        else:
+            # Default text model for everything else
+            return tier_models.get('text_analysis', 'llama3.1:8b')
+
+    async def _run_agent_cycle(self, category: str, current_doc: dict = None) -> AsyncGenerator[dict, None]:
+        """
+        Execute a multi-step Agent Reasoning Cycle based on the completed category.
+        This simulates a real agent deciding what to do with new data.
+        
+        Args:
+            category: Category of documents being processed
+            current_doc: The current document being processed (for images, to get the path)
+        """
+        if not self.use_ollama or not self.ollama_service:
+            return
+
+        # Define the Agent's Workflow based on what just arrived
+        steps = []
+        
+        # SGP is the authoritative source for agent grounding
+        
+        if not self.sgp_loader:
+            logger.error("SGP not loaded - agent cannot operate without semantic grounding")
+            raise RuntimeError("Semantic Grounding Profile is required but not loaded")
+        
+        virtual_pmm_identity = self.sgp_loader.build_system_prompt(focus="competitive_intel")
+
+        default_model = await self._get_model_for_category(category, current_doc)
+
+        if category == 'dossier':
+            steps = [
+                {
+                    "type": "thought",
+                    "prompt": "TASK: Analyze these competitor dossiers.\nQUESTION: What specific technical weaknesses do Samsung/Kioxia have that leave the door open for aiDAPTIV+?\nOUTPUT: The 'Attack Vector' we can use against them.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Virtual_PMM"
+                }
+            ]
+        elif category == 'news':
+            steps = [
+                {
+                    "type": "thought",
+                    "prompt": "TASK: Scan the current news batch for 'Validation Signals'.\nQUESTION: Connect NVIDIA's recent hardware moves with Intel's client constraints. Specifically, how does this validate the need for KV-cache offloading?\nOUTPUT: Strategic synthesis of the market wedge.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Virtual_PMM"
+                }
+            ]
+        elif category == 'video' or (category == 'documentation' and 'transcript' in current_doc.get('name', '').lower()):
+            steps = [
+                {
+                    "type": "observation",
+                    "prompt": "TASK: Extract 'Ground Truth' from these transcripts.\nQUESTION: Are they admitting to heat/power/memory limits? Find the apologies or excuses.\nOUTPUT: Verbatim quotes supporting the memory bottleneck thesis.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Media_Analyst"
+                }
+            ]
+        elif category == 'image':
+            steps = [
+                {
+                    "type": "observation",
+                    "prompt": "TASK: Analyze these visual materials (infographics, screenshots, booth photos).\nQUESTION: What are competitors claiming? What specs are they highlighting? What are they hiding?\nOUTPUT: Visual evidence of competitive positioning and technical claims.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Visual_Intel",
+                    "model": default_model # Use the vision model
+                }
+            ]
+        elif category == 'social':
+            steps = [
+                {
+                    "type": "observation",
+                    "prompt": "TASK: Listen to the developer complaints.\nQUESTION: Are they crying about 'OOM' (Out of Memory)? Are they unable to run Llama-3-70B?\nOUTPUT: The 'Voice of the Customer' pain points that justify our existence.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Virtual_PMM"
+                }
+            ]
+        else:
+            # Skip analysis for unknown categories or README
+            return
+
+        # Execute the steps
+        dynamic_context = self.ollama_service.build_context(self.processed_documents)
+        
+        for step in steps:
+            try:
+                # Emit status update for model loading (if using a different model)
+                step_model = step.get('model', default_model)
+                if step_model != self.current_model:
+                    yield StatusEvent(message=f"Swapping Model: {self.current_model} ➔ {step_model}...").model_dump()
+                    
+                    # Update model state
+                    self.current_model = step_model
+                    self.memory_monitor.set_model_size(step_model)
+                    
+                    # Force a memory update to show model weights in UI
+                    memory_data, _ = self.memory_monitor.calculate_memory()
+                    yield MemoryEvent(data=memory_data).model_dump()
+                    
+                    await asyncio.sleep(1.5)  # Pause to show loading status
+                
+                logger.info(f"Running Agent Step: {step['type']} with model {step_model}")
+                
+                # Collect image paths for llava (if processing images)
+                image_paths = []
+                if category == 'image' and current_doc and 'path' in current_doc:
+                    image_paths.append(current_doc['path'])
+                
+                async for thought_text, metrics in self.ollama_service.generate_step(
+                    context=dynamic_context,
+                    system_prompt=step['system'],
+                    user_prompt=step['prompt'],
+                    model=step_model,
+                    image_paths=image_paths if image_paths else None
+                ):
+                     # Log the content for monitoring
+                     logger.info(f"AGENT THOUGHT ({step['type']}): {thought_text[:100]}...")
+                     
+                     # Track cumulative tokens for TCO/billing (separate from memory usage)
+                     if 'input_tokens' in metrics:
+                         self.cumulative_input_tokens += metrics['input_tokens']
+                     if 'output_tokens' in metrics:
+                         self.cumulative_output_tokens += metrics['output_tokens']
+                     logger.info(f"Cumulative tokens for billing: {self.cumulative_input_tokens} input + {self.cumulative_output_tokens} output")
+                     
+                     yield ThoughtEvent(
+                        data=ThoughtData(
+                            text=thought_text,
+                            status="COMPLETE",
+                            timestamp=datetime.utcnow().isoformat() + "Z",
+                            step_type=step['type'],
+                            author=step['author']
+                        )
+                    ).model_dump()
+                     
+                     yield PerformanceEvent(data=PerformanceData(**metrics)).model_dump()
+                
+                # Short pause between steps
+                await asyncio.sleep(0.5)
+
+            except Exception as e:
+                logger.error(f"Agent step failed: {e}")
+                yield ThoughtEvent(
+                    data=ThoughtData(
+                        text=f"[Analysis Error: {str(e)}]",
+                        status="ERROR",
+                        timestamp=datetime.utcnow().isoformat() + "Z",
+                        step_type=step['type'],
+                        author=step['author']
+                    )
+                ).model_dump()
+    
     
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
@@ -382,7 +606,8 @@ class SimulationOrchestrator:
         
         if scenario == "ces2026":
             # Read actual files from documents/ces2026/
-            ces_dir = Path("documents/ces2026")
+            # Path: backend/services/orchestrator.py -> backend/ -> project_root/ -> documents/
+            ces_dir = Path(__file__).parent.parent.parent / "documents" / "ces2026"
             
             # 1. README (Core Instructions) - Load FIRST
             readme = ces_dir / "README.md"
@@ -409,30 +634,47 @@ class SimulationOrchestrator:
                 size_kb = file.stat().st_size / 1024
                 docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
             
-            # 5. Video transcripts
+            # 5. Image files (if tier supports it)
+            if self.current_tier in ["standard", "pro"]:
+                images_dir = ces_dir / "images"
+                if images_dir.exists():
+                    for subdir in ["infographics", "competitor_screenshots", "social_media"]:
+                        subdir_path = images_dir / subdir
+                        if subdir_path.exists():
+                            for file in sorted(subdir_path.glob("*.png")):
+                                size_kb = file.stat().st_size / 1024
+                                docs.append({
+                                    "name": file.name,
+                                    "category": "image",
+                                    "size_kb": round(size_kb, 1),
+                                    "path": str(file),
+                                    "content": f"[Image: {file.name}]"
+                                })
+            
+            # 6. Video transcripts (categorized as documentation since they're text files)
             video_dir = ces_dir / "video"
             if video_dir.exists():
                 for file in sorted(video_dir.glob("*.txt")):
                     content = file.read_text(encoding='utf-8')
                     size_kb = file.stat().st_size / 1024
                     docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1), "content": content})
-                
-        elif tier == "lite":
-            # 3 competitors + 10 papers + 5 social
-            for i in range(3):
-                docs.append({"name": f"competitor_{chr(97+i)}.txt", "category": "competitor"})
-            for i in range(10):
-                docs.append({"name": f"arxiv_{i+1:03d}.txt", "category": "paper"})
-            for i in range(5):
-                docs.append({"name": f"social_signal_{i+1}.txt", "category": "social"})
-        else:  # large
-            # 12 competitors + 234 papers + 22 social
-            for i in range(12):
-                docs.append({"name": f"competitor_{chr(97+i)}.txt", "category": "competitor"})
-            for i in range(234):
-                docs.append({"name": f"arxiv_{i+1:03d}.txt", "category": "paper"})
-            for i in range(22):
-                docs.append({"name": f"social_signal_{i+1}.txt", "category": "social"})
+        
+        # Sort documents by priority for demo:
+        # 1. Images (multi-modal demo - FIRST for dev speed)
+        # 2. Dossier (core context)
+        # 3. Videos (multi-modal demo)
+        # 4. Everything else
+        def get_priority(doc):
+            if doc['category'] == 'image':
+                return 0
+            elif doc['category'] == 'dossier':
+                return 1
+            elif doc['category'] == 'video':
+                return 2
+            else:
+                return 3
+        
+        docs.sort(key=get_priority)
         
         return docs
     
@@ -532,6 +774,10 @@ class SimulationOrchestrator:
                      self.current_model = target_model
                      # Update memory monitor with new model size
                      self.memory_monitor.set_model_size(target_model)
+                     
+                     # Force immediate update
+                     memory_data, _ = self.memory_monitor.calculate_memory()
+                     yield MemoryEvent(data=memory_data).model_dump()
 
                 logger.info(f"Generating LLM thought for phase: {current_phase} with dynamic context")
                 async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
@@ -539,6 +785,13 @@ class SimulationOrchestrator:
                     current_phase,
                     scenario=self.config.scenario # Pass scenario to service
                 ):
+                    # Track cumulative tokens for TCO/billing (separate from memory usage)
+                    if 'input_tokens' in performance_metrics:
+                        self.cumulative_input_tokens += performance_metrics['input_tokens']
+                    if 'output_tokens' in performance_metrics:
+                        self.cumulative_output_tokens += performance_metrics['output_tokens']
+                    logger.info(f"Cumulative tokens for billing: {self.cumulative_input_tokens} input + {self.cumulative_output_tokens} output")
+                    
                     # Yield thought event
                     yield ThoughtEvent(
                         data=ThoughtData(
@@ -556,7 +809,7 @@ class SimulationOrchestrator:
                     yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
                     
                     # Throttle streaming for readability
-                    await asyncio.sleep(config.THOUGHT_STREAM_DELAY)
+                    await asyncio.sleep(app_config.THOUGHT_STREAM_DELAY)
             
             except Exception as e:
                 logger.error(f"Error generating LLM thought: {e}")
@@ -630,65 +883,3 @@ class SimulationOrchestrator:
             )
         )
     
-    
-    def _create_complete_event(self, memory_data) -> CompleteEvent:
-        """Create analysis complete event."""
-        tier = self.config.tier
-        
-        findings = FindingsData(
-            shifts_detected=3 if tier == "large" else 2,
-            evidence="5 UI patterns, 8 papers, 23 social signals" if tier == "large" else "3 UI patterns, 2 papers, 5 signals",
-            recommendation="Expedited roadmap review required" if tier == "large" else "Monitor competitive landscape"
-        )
-        
-        memory_stats = MemoryStatsData(
-            unified_gb=memory_data.unified_gb,
-            virtual_gb=memory_data.virtual_gb,
-            total_gb=memory_data.unified_gb + memory_data.virtual_gb
-        )
-        
-        return CompleteEvent(
-            data=CompleteData(
-                success=True,
-                scenario=self.config.scenario,
-                tier=self.config.tier,
-                findings=findings,
-                memory_stats=memory_stats
-            )
-        )
-    
-    def _create_impact_summary(self, total_docs: int, memory_data, duration_seconds: float) -> ImpactSummaryEvent:
-        """Create impact summary event with analysis metrics."""
-        # Calculate context size (rough estimate based on documents)
-        avg_doc_size_mb = 0.05  # 50KB average
-        context_size_gb = (total_docs * avg_doc_size_mb) / 1024
-        
-        # Calculate memory saved (offloaded to SSD)
-        memory_saved_gb = memory_data.virtual_gb if memory_data.virtual_active else 0.0
-        
-        # Estimate costs
-        estimated_cost_local = 0.0
-        
-        # Cloud GPU estimate
-        if self.config.tier == "lite":
-            estimated_cost_cloud = 0.10
-            time_without_aidaptiv = duration_seconds / 60
-        else:
-            estimated_cost_cloud = 45.0
-            time_without_aidaptiv = 15.0
-        
-        time_minutes = duration_seconds / 60
-        
-        return ImpactSummaryEvent(
-            data=ImpactSummaryData(
-                documents_processed=total_docs,
-                total_documents=total_docs,
-                context_size_gb=round(context_size_gb, 2),
-                memory_saved_gb=round(memory_saved_gb, 2),
-                estimated_cost_local=estimated_cost_local,
-                estimated_cost_cloud=estimated_cost_cloud,
-                estimated_monthly_cost=50.0 if self.config.tier == "lite" else 3200.0,
-                time_minutes=round(time_minutes, 1),
-                time_without_aidaptiv=time_without_aidaptiv
-            )
-        )

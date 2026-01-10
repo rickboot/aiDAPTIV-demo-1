@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { useScenario } from '../ScenarioContext';
-import { SCENARIOS, SUCCESS_REPORT } from '../mockData';
+import { SCENARIOS } from '../mockData';
 
 import { SettingsModal } from './SettingsModal';
 import { AboutModal } from './AboutModal';
@@ -153,124 +154,33 @@ const StatusBadge = ({ type }: { type: string }) => {
         case 'ACTIVE':
             return <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-500 tracking-wider flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-ring"></span>ACTIVE</span>;
         case 'COMPLETE':
-            return <span className="px-2.5 py-1 rounded-xl bg-green-500/10 border border-green-500/30 text-[10px] font-bold text-green-500 tracking-wider">✓ COMPLETE</span>;
+            // User requested to hide "COMPLETE" as it's redundant
+            return null;
         case 'ANALYZING':
             return <span className="px-2.5 py-1 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-bold text-cyan-500 tracking-wider flex items-center gap-1">ANALYZING <span className="animate-dot-typing"></span></span>;
         case 'WAITING':
-            return <span className="px-2.5 py-1 rounded-xl bg-gray-500/10 border border-gray-500/30 text-[10px] font-bold text-gray-500 tracking-wider">WAITING</span>;
+            // User requested to hide "WAITING"
+            return null;
         case 'WARNING':
             return <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-500 tracking-wider flex items-center gap-1">⚠️ MEMORY PRESSURE</span>;
         default: return null;
     }
 }
 
-// SUCCESS OVERLAY
-// SUCCESS OVERLAY
-const SuccessOverlay = ({ onClose }: { onClose: () => void }) => {
-    const { metrics } = useScenario();
-
-    return (
-        <div className="absolute inset-0 bg-dashboard-bg/95 backdrop-blur-md z-50 flex items-center justify-center animate-fade-in text-white p-8">
-            <div className="max-w-5xl w-full bg-[#1e293b] border border-blue-500/30 rounded-2xl shadow-[0_0_50px_rgba(59,130,246,0.15)] p-0 overflow-hidden flex flex-col">
-
-                {/* Report Header */}
-                <div className="bg-slate-800/50 p-8 border-b border-dashboard-border flex justify-between items-start">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase tracking-widest rounded-md border border-blue-500/20">
-                                CONFIDENTIAL
-                            </div>
-                            <div className="text-text-muted text-xs uppercase tracking-wider">
-                                GENERATED: {new Date().toLocaleDateString()}
-                            </div>
-                        </div>
-                        <h2 className="text-3xl font-bold text-white tracking-tight">Strategic Intelligence Report</h2>
-                        <div className="text-blue-300/80 mt-1">Target: Competitive Landscape Q1 2026</div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-4xl font-black text-emerald-400 tracking-tighter">HIGH</div>
-                        <div className="text-xs font-bold text-text-secondary uppercase tracking-widest">THREAT LEVEL DETECTED</div>
-                    </div>
-                </div>
-
-                <div className="flex flex-1">
-                    {/* Left: Key Insights */}
-                    <div className="w-2/3 p-8 border-r border-dashboard-border">
-                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 bg-accent-primary rounded-full"></span> Executive Summary
-                        </h3>
-
-                        <div className="mb-8">
-                            <div className="text-xl font-light leading-relaxed text-white mb-4">
-                                {SUCCESS_REPORT.finding}
-                            </div>
-                            <div className="p-4 bg-blue-500/10 border-l-4 border-blue-500 rounded-r-lg">
-                                <div className="text-xs font-bold text-blue-300 uppercase mb-1">Strategic Implication</div>
-                                <div className="text-sm text-blue-100/80 leading-relaxed">
-                                    {SUCCESS_REPORT.implication}
-                                </div>
-                            </div>
-                        </div>
-
-                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Supporting Evidence</h3>
-                        <ul className="space-y-3">
-                            {SUCCESS_REPORT.evidence.map((line, i) => (
-                                <li key={i} className="flex items-start gap-3 text-sm text-gray-300 group">
-                                    <span className="text-blue-500 mt-1.5 text-[10px]">●</span>
-                                    <span className="group-hover:text-white transition-colors">{line}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    {/* Right: Metrics & Actions */}
-                    <div className="w-1/3 bg-slate-800/20 p-8 flex flex-col">
-
-                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-6">Analysis Scope</h3>
-
-                        <div className="space-y-4 mb-8">
-                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Key Topics</span>
-                                <span className="font-mono font-bold text-white">{metrics.key_topics}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Patterns Detected</span>
-                                <span className="font-mono font-bold text-white">{metrics.patterns_detected}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Insights Generated</span>
-                                <span className="font-mono font-bold text-white">{metrics.insights_generated}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 bg-dashboard-bg rounded-lg border border-dashboard-border/50">
-                                <span className="text-sm text-text-secondary">Critical Flags</span>
-                                <span className="font-mono font-bold text-white text-amber-400">{metrics.critical_flags}</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-auto space-y-3">
-                            <button className="w-full py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-all flex items-center justify-center gap-2">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                                EXPORT REPORT
-                            </button>
-                            <button onClick={onClose} className="w-full py-3 rounded-lg bg-transparent border border-gray-600 hover:bg-gray-700 text-text-secondary hover:text-white font-bold text-sm transition-all">
-                                CLOSE
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 
 export const WarRoomDisplay = () => {
     const {
-        feed, worldModel, systemState, metrics, performance, currentActivity,
+        feed, worldModel, metrics, currentActivity,
         isAnalysisRunning, startAnalysis, stopAnalysis,
-        isSuccess, isComplete, showResults, closeResults,
-        activeScenario, tier, impactSummary
+        activeScenario, tier, currentTier, upgradeMessage, toggleAidaptiv
     } = useScenario();
+
+    // Create a stable reference to toggleAidaptiv
+    const handleEnableAidaptiv = () => {
+        console.log('WarRoomDisplay: handleEnableAidaptiv called');
+        toggleAidaptiv();
+    };
 
     const activeFileRef = React.useRef<HTMLDivElement>(null);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -292,8 +202,6 @@ export const WarRoomDisplay = () => {
             <Sidebar />
 
             <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
-                {/* SUCCESS OVERLAY */}
-                {isSuccess && <SuccessOverlay onClose={closeResults} />}
 
                 {/* CRASH OVERLAY */}
                 {/* @ts-ignore - isCrashed is definitely in context, adding fallback just in case */}
@@ -313,33 +221,19 @@ export const WarRoomDisplay = () => {
                                 <span className="italic">{activeScenario.subtitle}</span>
                             </div>
                         </div>
-                        {isComplete && !isSuccess ? (
+                        {isAnalysisRunning ? (
                             <button
-                                onClick={showResults}
-                                className="h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/30 ring-1 ring-emerald-400/50 animate-pulse"
+                                onClick={stopAnalysis}
+                                className="h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"
                             >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                VIEW RESULTS
+                                <div className="w-3 h-3 bg-white rounded-sm" /> STOP ANALYSIS
                             </button>
                         ) : (
                             <button
-                                onClick={isAnalysisRunning ? stopAnalysis : startAnalysis}
-                                className={`h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 ${isAnalysisRunning
-                                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/30'
-                                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-400/50'
-                                    }`}
+                                onClick={startAnalysis}
+                                className="h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-400/50"
                             >
-                                {isAnalysisRunning ? (
-                                    <>
-                                        <div className="w-3 h-3 bg-white rounded-sm" /> STOP ANALYSIS
-                                    </>
-                                ) : (
-                                    <>
-                                        <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" /> START ANALYSIS
-                                    </>
-                                )}
+                                <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" /> START ANALYSIS
                             </button>
                         )}
                     </div>
@@ -424,11 +318,14 @@ export const WarRoomDisplay = () => {
                                                     </div>
                                                     <StatusBadge type={item.badge} />
                                                 </div>
-                                                <div className={`text-xs whitespace-pre-wrap font-mono leading-relaxed transition-colors ${focusedThoughtId === item.id
-                                                    ? 'text-white'
-                                                    : 'text-text-primary opacity-90'
+
+
+                                                <div className={`text-sm tracking-wide font-sans leading-relaxed transition-colors prose prose-invert max-w-none 
+                                                    prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:text-cyan-300 prose-strong:font-bold prose-headings:text-sm prose-headings:font-bold ${focusedThoughtId === item.id
+                                                        ? 'text-white'
+                                                        : 'text-text-primary opacity-90'
                                                     }`}>
-                                                    {item.content}
+                                                    <ReactMarkdown>{item.content}</ReactMarkdown>
                                                 </div>
                                                 {/* Related Docs Pill */}
                                                 {item.relatedDocIds && item.relatedDocIds.length > 0 && (
@@ -455,7 +352,7 @@ export const WarRoomDisplay = () => {
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest">Data Sources</h3>
                                     <div className="flex gap-4 text-xs font-mono">
-                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / {impactSummary?.total_documents || (tier === 'large' ? 268 : 18)}</span>
+                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / {tier === 'large' ? 268 : 21}</span>
                                     </div>
                                 </div>
                                 {/* Filter Toolbar */}
@@ -503,7 +400,8 @@ export const WarRoomDisplay = () => {
                                                 <div className="flex items-center gap-3 flex-1 min-w-0">
                                                     <div className={`w-8 h-8 rounded flex items-center justify-center text-lg ${isActualActive ? 'bg-blue-500/20 animate-bounce' : 'bg-black/20'
                                                         }`}>
-                                                        {item.type === 'screenshot' ? '🖥️' : '📄'}
+                                                        {item.type === 'screenshot' ? '🖥️' :
+                                                            item.type === 'video_transcript' ? '🎥' : '📄'}
                                                     </div>
 
                                                     <div className="flex flex-col min-w-0">
@@ -511,9 +409,12 @@ export const WarRoomDisplay = () => {
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <span className={`text-[9px] font-bold px-1.5 py-px rounded ${item.type === 'screenshot'
                                                                 ? 'bg-purple-500/20 text-purple-300'
-                                                                : 'bg-amber-500/20 text-amber-300'
+                                                                : item.type === 'video_transcript'
+                                                                    ? 'bg-pink-500/20 text-pink-300'
+                                                                    : 'bg-amber-500/20 text-amber-300'
                                                                 }`}>
-                                                                {item.type === 'screenshot' ? 'IMG' : 'DOC'}
+                                                                {item.type === 'screenshot' ? 'IMG' :
+                                                                    item.type === 'video_transcript' ? 'VID' : 'DOC'}
                                                             </span>
                                                             <span className="text-[9px] opacity-50 font-mono">{item.memorySize.toFixed(1)}KB</span>
                                                         </div>

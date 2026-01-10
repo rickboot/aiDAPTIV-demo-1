@@ -1,31 +1,11 @@
 import type { Scenario, FeedItem, WorldModelItem } from './types';
 
-// SCENARIO 1: PMM Competitive Intelligence (DEFAULT)
-// Initial Feed (Static history)
-const PMM_INITIAL_FEED: FeedItem[] = [
-    { id: 'p-0', source: 'AI_Agent', author: '@AI_Agent', content: 'Monitoring active data pipelines for Q1 2026...', timestamp: '2h ago', badge: 'WAITING' },
-];
-
-// SCENARIO 2: CES 2026 Supply Chain Monitor (Phison-specific)
+// SCENARIO: CES 2026 Supply Chain Monitor (Phison-specific)
 const CES2026_INITIAL_FEED: FeedItem[] = [
-    { id: 'ces-0', source: 'AI_Agent', author: '@Phison_Intel', content: 'CES 2026 monitoring active. Scanning for DRAM, NAND, OEM, and competitive signals...', timestamp: '1h ago', badge: 'WAITING' },
+    { id: 'ces-0', source: 'AI_Agent', author: '@Phison_Intel', content: 'CES 2026 monitoring active. Scanning for AI, DRAM, NAND, OEM, and competitive signals...', timestamp: '1h ago', badge: 'WAITING' },
 ];
 
 export const SCENARIOS: Scenario[] = [
-    {
-        id: 'pmm_lite',
-        title: 'PMM Analysis (Lite)',
-        subtitle: '18 Documents - Standard Laptop',
-        description: 'Competitor Analysis (Lite)',
-        initialFeed: PMM_INITIAL_FEED
-    },
-    {
-        id: 'pmm_large',
-        title: 'PMM Analysis (Large)',
-        subtitle: '268 Documents - Workstation Load',
-        description: 'Competitor Analysis (Large)',
-        initialFeed: PMM_INITIAL_FEED
-    },
     {
         id: 'ces2026',
         title: 'CES 2026 Supply Chain Monitor',
@@ -48,7 +28,7 @@ export const INITIAL_WORLD_MODEL: WorldModelItem[] = Array.from({ length: 96 }).
     };
 });
 
-export const MOCK_FEED = PMM_INITIAL_FEED;
+export const MOCK_FEED = CES2026_INITIAL_FEED;
 
 // --- NEW DEMO DATA ---
 
@@ -63,23 +43,6 @@ export const DEMO_THOUGHTS = [
     { time: 25, content: 'Pattern Confirmation: 80% certainty on "Agentic Pivot".', badge: 'COMPLETE' }
 ];
 
-// Success Report Data
-export const SUCCESS_REPORT = {
-    title: "Analysis Complete",
-    mainInsight: "Competitor Market Pivot Detected",
-    finding: "3 major competitors are quietly shifting from RAG to Agentic Architectures.",
-    evidence: [
-        "Visual: 12 new 'reasoning' UI patterns detected.",
-        "Technical: 8 citations of 'Multi-Step Reasoning' in recent whitepapers.",
-        "Timeline: All changes occurred within the last 14 days."
-    ],
-    implication: "Immediate risk of feature gap in Q1 2026. Recommendation: Acceleration of Agentic Roadmap.",
-    stats: {
-        contextProcessed: "460 GB",
-        ssdOffload: "220 GB",
-        gpuUtil: "98%"
-    }
-};
 
 // Start metrics (increment from here)
 export const INITIAL_METRICS = {
