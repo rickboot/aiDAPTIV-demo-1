@@ -11,7 +11,7 @@ import logging
 
 from models.schemas import (
     ScenarioConfig, ThoughtEvent, ThoughtData, MemoryEvent, DocumentEvent,
-    DocumentData, MetricEvent, MetricData, CompleteEvent, CompleteData,
+    DocumentData, DocumentStatusEvent, MetricEvent, MetricData, CompleteEvent, CompleteData,
     CrashEvent, CrashData, FindingsData, MemoryStatsData, PerformanceEvent, PerformanceData,
     ImpactSummaryEvent, ImpactSummaryData, StatusEvent
 )
@@ -20,6 +20,8 @@ from services.performance_monitor import PerformanceMonitor
 from services.ollama_service import OllamaService, ANALYSIS_PHASES, ANALYSIS_PHASES_CES
 from services.image_gen_service import ImageGenService
 from services.memory_tier_manager import MemoryTierManager
+from services.context_manager import ContextManager
+from services.session_manager import SessionManager
 from sgp_config.sgp_loader import SGPLoader
 import config as app_config
 import os
@@ -184,6 +186,12 @@ class SimulationOrchestrator:
             "critical_flags": 0
         }
         
+        # Track unique items to avoid double counting
+        self.unique_topics = set()
+        self.unique_patterns = set()
+        self.unique_insights = set()
+        self.unique_flags = set()
+        
         # Token tracking for TCO/billing (separate from memory usage)
         self.cumulative_input_tokens = 0
         self.cumulative_output_tokens = 0
@@ -197,6 +205,20 @@ class SimulationOrchestrator:
         self.image_gen_service = None
         if self.current_tier == "pro":
             self.image_gen_service = ImageGenService()
+            
+        # Persistent state
+        self.context_manager = ContextManager()
+        self.session_manager = SessionManager()
+        
+        # Load accumulated metrics
+        saved_metrics = self.session_manager.load_metrics()
+        # Initialize if not present in saved metrics, otherwise use saved values or start at 0
+        self.cumulative_input_tokens = saved_metrics.get("cumulative_input_tokens", 0)
+        self.cumulative_output_tokens = saved_metrics.get("cumulative_output_tokens", 0)
+        
+        # Load persistent active context
+        context_state_path = self.session_manager.data_dir / "context_state.json"
+        self.context_manager.load_state(context_state_path)
         
         logger.info(f"Initialized with tier: {self.current_tier}, aiDAPTIV+: {aidaptiv_enabled}")
         
@@ -350,9 +372,13 @@ class SimulationOrchestrator:
             progress_percent = ((doc_index + 1) / total_docs) * 100
             self.current_progress = progress_percent
             
-            # 1. SEND DOCUMENT EVENT
+            # 1. SEND DOCUMENT EVENT (Start Processing)
+            # This puts the document in "Processing" (Blue) state in UI
             doc_event = self._create_document_event(current_doc, doc_index, total_docs)
             yield doc_event.model_dump()
+            
+            # Send explicit status update
+            yield DocumentStatusEvent(data={"index": doc_index, "status": "processing"}).model_dump()
             
             # Context growth is now tracked from real LLM responses only (no simulation)
             # doc_tokens = 200
@@ -403,22 +429,31 @@ class SimulationOrchestrator:
                 is_batch_complete = True
             
             if is_batch_complete:
-                logger.info(f"Triggering Agent Cycle. Documents in batch: {docs_in_current_batch}, Category: {current_doc['category']}")
+                batch_size = docs_in_current_batch # Store for later loop
+                logger.info(f"Triggering Agent Cycle. Documents in batch: {batch_size}, Category: {current_doc['category']}")
                 docs_in_current_batch = 0
                 
                 # Yield status update
                 yield StatusEvent(message=f"Analyzing {current_doc['category']} data...").model_dump()
                 
                 # Run the Agent Cycle for this category
-                async for agent_event in self._run_agent_cycle(current_doc['category'], current_doc):
+                # Pass batch info so agent can mark documents green at the right time
+                async for agent_event in self._run_agent_cycle(
+                    current_doc['category'], 
+                    current_doc,
+                    batch_size=batch_size,
+                    doc_index=doc_index
+                ):
                     yield agent_event
 
             
-            # 6. SEND METRIC UPDATES (periodically)
-            if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
-                metric_events = self._create_metric_updates(progress_percent)
-                for metric_event in metric_events:
-                    yield metric_event.model_dump()
+            # 6. SEND METRIC UPDATES (REAL-TIME)
+            # Metrics are now yielded directly from the agent cycle based on LLM output tags.
+            # We preserve this hook just in case we need fallback logic, but disabling the fake updates.
+            # if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
+            #     metric_events = self._create_metric_updates(progress_percent)
+            #     for metric_event in metric_events:
+            #         yield metric_event.model_dump()
             
             # 7. WAIT FOR NEXT TICK (only if not about to run agent cycle)
             if not is_batch_complete:
@@ -451,7 +486,7 @@ class SimulationOrchestrator:
             # Default text model for everything else
             return tier_models.get('text_analysis', 'llama3.1:8b')
 
-    async def _run_agent_cycle(self, category: str, current_doc: dict = None) -> AsyncGenerator[dict, None]:
+    async def _run_agent_cycle(self, category: str, current_doc: dict = None, batch_size: int = 1, doc_index: int = 0) -> AsyncGenerator[dict, None]:
         """
         Execute a multi-step Agent Reasoning Cycle based on the completed category.
         This simulates a real agent deciding what to do with new data.
@@ -472,7 +507,18 @@ class SimulationOrchestrator:
             logger.error("SGP not loaded - agent cannot operate without semantic grounding")
             raise RuntimeError("Semantic Grounding Profile is required but not loaded")
         
-        virtual_pmm_identity = self.sgp_loader.build_system_prompt(focus="competitive_intel")
+        # Add metric instruction to the system prompt
+        metric_instruction = (
+            "\n\nIMPORTANT: Embed findings naturally in your analysis using these tags WITHIN sentences:\n"
+            "As you analyze, you MUST strictly tag key findings using this format:\n"
+            "- [TOPIC: <Entity Name>] for companies, products, or technologies mentioned.\n"
+            "- [PATTERN: <Short Description>] for recurring trends or design shifts.\n"
+            "- [INSIGHT: <Short Description>] for actionable conclusions or value judgments.\n"
+            "- [FLAG: <Urgent Issue>] for critical risks, bottlenecks, or warnings.\n"
+            "Example output: 'I noticed [TOPIC: Samsung] is releasing a new controller. This indicates a [PATTERN: monolithic design] shift. [INSIGHT: Vertical integration is key].'"
+        )
+        
+        virtual_pmm_identity = self.sgp_loader.build_system_prompt(focus="competitive_intel") + metric_instruction
 
         default_model = await self._get_model_for_category(category, current_doc)
 
@@ -480,7 +526,7 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "thought",
-                    "prompt": "TASK: Analyze these competitor dossiers.\nQUESTION: What specific technical weaknesses do Samsung/Kioxia have that leave the door open for aiDAPTIV+?\nOUTPUT: The 'Attack Vector' we can use against them.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Analyze these competitor dossiers.\nQUESTION: What specific technical weaknesses do Samsung/Kioxia have that leave the door open for aiDAPTIV+?\nOUTPUT: The 'Attack Vector' we can use against them.",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
@@ -489,7 +535,7 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "thought",
-                    "prompt": "TASK: Scan the current news batch for 'Validation Signals'.\nQUESTION: Connect NVIDIA's recent hardware moves with Intel's client constraints. Specifically, how does this validate the need for KV-cache offloading?\nOUTPUT: Strategic synthesis of the market wedge.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Scan the current news batch for 'Validation Signals'.\nQUESTION: Connect NVIDIA's recent hardware moves with Intel's client constraints. Specifically, how does this validate the need for KV-cache offloading?\nOUTPUT: Strategic synthesis of the market wedge.",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
@@ -498,16 +544,16 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "observation",
-                    "prompt": "TASK: Extract 'Ground Truth' from these transcripts.\nQUESTION: Are they admitting to heat/power/memory limits? Find the apologies or excuses.\nOUTPUT: Verbatim quotes supporting the memory bottleneck thesis.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Identify 'Market Wedges' for aiDAPTIV+ in this transcript.\n\n1. **Memory Wall:** Where do they admit that HBM/VRAM is expensive, scarce, or power-hungry?\n2. **Edge Gap:** Find evidence that local hardware (even RTX 5090) cannot run frontier models (70B+) without help.\n3. **Actionable Intel:** Extract specific VRAM numbers or model sizes that prove the need for SSD offloading.\n\nOUTPUT: Strategic validation signals for the PMM team.",
                     "system": virtual_pmm_identity,
-                    "author": "@Media_Analyst"
+                    "author": "@Virtual_PMM"
                 }
             ]
         elif category == 'image':
             steps = [
                 {
                     "type": "observation",
-                    "prompt": "TASK: Analyze these visual materials (infographics, screenshots, booth photos).\nQUESTION: What are competitors claiming? What specs are they highlighting? What are they hiding?\nOUTPUT: Visual evidence of competitive positioning and technical claims.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nExtract key intel in 3-4 bullet points:\n• Memory specs (DRAM/HBM amounts, bandwidth)\n• What fails on these specs? (e.g., Llama-3-70B needs 40GB)\n• Opportunity for aiDAPTIV+\n\nBe ultra-concise. Numbers only. No fluff.",
                     "system": virtual_pmm_identity,
                     "author": "@Visual_Intel",
                     "model": default_model # Use the vision model
@@ -517,7 +563,7 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "observation",
-                    "prompt": "TASK: Listen to the developer complaints.\nQUESTION: Are they crying about 'OOM' (Out of Memory)? Are they unable to run Llama-3-70B?\nOUTPUT: The 'Voice of the Customer' pain points that justify our existence.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Listen to the developer complaints.\nQUESTION: Are they crying about 'OOM' (Out of Memory)? Are they unable to run Llama-3-70B?\nOUTPUT: The 'Voice of the Customer' pain points that justify our existence.",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
@@ -527,7 +573,30 @@ class SimulationOrchestrator:
             return
 
         # Execute the steps
-        dynamic_context = self.ollama_service.build_context(self.processed_documents)
+        
+        # Add current doc to persistent context manager
+        # Estimate tokens: ~1 token per 4 chars, or use rough size estimate 
+        doc_text = current_doc.get('content', '') or current_doc.get('text', '')
+        est_tokens = len(doc_text) // 4 if doc_text else int(current_doc.get('size_kb', 0) * 200)
+        
+        self.context_manager.add_document(current_doc, est_tokens)
+        
+        # Save context state to disk
+        context_state_path = self.session_manager.data_dir / "context_state.json"
+        self.context_manager.save_state(context_state_path)
+        
+        # Build context from CURRENT BATCH ONLY (not all accumulated documents)
+        # This ensures LLM analyzes the specific document(s) being processed
+        # For images: only the current image
+        # For text batches: only the documents in this batch
+        batch_documents = []
+        for i in range(batch_size):
+            batch_doc_index = doc_index - (batch_size - 1) + i
+            if 0 <= batch_doc_index < len(self.processed_documents):
+                batch_documents.append(self.processed_documents[batch_doc_index])
+        
+        dynamic_context = self.ollama_service.build_context(batch_documents)
+        logger.info(f"Built context from {len(batch_documents)} batch documents (not all {len(self.context_manager.active_documents)} active docs)")
         
         for step in steps:
             try:
@@ -548,15 +617,18 @@ class SimulationOrchestrator:
                 
                 logger.info(f"Running Agent Step: {step['type']} with model {step_model}")
                 
-                # Collect image paths for llava (if processing images)
+                # Collect image paths for llava (if processing images or videos)
                 image_paths = []
-                if category == 'image' and current_doc and 'path' in current_doc:
+                if (category == 'image' or category == 'video') and current_doc and 'path' in current_doc:
                     image_paths.append(current_doc['path'])
+                
+                # Append metric reminder to the user prompt to ensure compliance
+                step_prompt = step['prompt'] + "\n\nREMINDER: You MUST use tags like [TOPIC: x], [PATTERN: x], [INSIGHT: x] in your output."
                 
                 async for thought_text, metrics in self.ollama_service.generate_step(
                     context=dynamic_context,
                     system_prompt=step['system'],
-                    user_prompt=step['prompt'],
+                    user_prompt=step_prompt,
                     model=step_model,
                     image_paths=image_paths if image_paths else None
                 ):
@@ -568,6 +640,10 @@ class SimulationOrchestrator:
                          self.cumulative_input_tokens += metrics['input_tokens']
                      if 'output_tokens' in metrics:
                          self.cumulative_output_tokens += metrics['output_tokens']
+                     
+                     # Save updated metrics to disk
+                     self.session_manager.save_metrics(self.cumulative_input_tokens, self.cumulative_output_tokens)
+                     
                      logger.info(f"Cumulative tokens for billing: {self.cumulative_input_tokens} input + {self.cumulative_output_tokens} output")
                      
                      yield ThoughtEvent(
@@ -576,11 +652,34 @@ class SimulationOrchestrator:
                             status="COMPLETE",
                             timestamp=datetime.utcnow().isoformat() + "Z",
                             step_type=step['type'],
-                            author=step['author']
+                            author=step['author'],
+                            source=current_doc.get('name', 'Unknown')  # Show which document is being analyzed
                         )
                     ).model_dump()
                      
                      yield PerformanceEvent(data=PerformanceData(**metrics)).model_dump()
+                     
+                     # Extract and yield real metrics from thought text
+                     # Primary Method: Regex
+                     metric_events = self._extract_metrics(thought_text)
+                     
+                     # Fallback Method: Two-Pass LLM Extraction (if regex failed)
+                     # Essential for Vision Models which ignore formatting instructions
+                     if not metric_events and (step.get('model', '').startswith('llava') or "observation" in step['type']):
+                         logger.info("Regex found no metrics. Triggering Two-Pass Extraction with Llama 3...")
+                         metric_events = await self._analyze_text_for_metrics(thought_text)
+                     
+                     for me in metric_events:
+                         yield me.model_dump()
+                     
+                     # Mark documents as analyzed AFTER yielding thought
+                     # This ensures UI shows green AFTER reasoning appears
+                     logger.info(f"🟢 Marking batch as analyzed: batch_size={batch_size}, doc_index={doc_index}")
+                     for i in range(batch_size):
+                         completed_index = doc_index - (batch_size - 1) + i
+                         if completed_index >= 0 and completed_index <= doc_index:
+                             logger.info(f"🟢 Sending vram status for doc {completed_index}")
+                             yield DocumentStatusEvent(data={"index": completed_index, "status": "vram"}).model_dump()
                 
                 # Short pause between steps
                 await asyncio.sleep(0.5)
@@ -597,6 +696,53 @@ class SimulationOrchestrator:
                     )
                 ).model_dump()
     
+    
+    def _extract_metrics(self, text: str) -> list[MetricEvent]:
+        """Extract metrics from tagged LLM output using regex."""
+        import re
+        events = []
+        
+        # Regex patterns for tags (Case Insensitive)
+        flags = re.IGNORECASE
+        patterns = {
+            "key_topics": re.compile(r"\[TOPIC:\s*([^\]]+)\]", flags),
+            "patterns_detected": re.compile(r"\[PATTERN:\s*([^\]]+)\]", flags),
+            "insights_generated": re.compile(r"\[INSIGHT:\s*([^\]]+)\]", flags),
+            "critical_flags": re.compile(r"\[FLAG:\s*([^\]]+)\]", flags)
+        }
+        
+        found_any = False
+        for metric_name, pattern in patterns.items():
+            matches = pattern.findall(text)
+            if matches:
+                 logger.info(f"FOUND METRICS ({metric_name}): {matches}")
+                 found_any = True
+            
+            for match in matches:
+                value = match.strip()
+                
+                # Determine the correct unique set based on metric_name
+                usage_set = None
+                if metric_name == "key_topics":
+                    usage_set = self.unique_topics
+                elif metric_name == "patterns_detected":
+                    usage_set = self.unique_patterns
+                elif metric_name == "insights_generated":
+                    usage_set = self.unique_insights
+                elif metric_name == "critical_flags":
+                    usage_set = self.unique_flags
+                
+                if usage_set is not None:
+                    if value not in usage_set:
+                        usage_set.add(value)
+                        self.metrics[metric_name] += 1
+                        events.append(MetricEvent(data=MetricData(name=metric_name, value=self.metrics[metric_name])))
+        
+        if not found_any:
+            # Debug log to see why we missed it
+            logger.debug(f"NO METRICS FOUND IN: {text[:50]}...")
+            
+        return events
     
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
@@ -660,19 +806,23 @@ class SimulationOrchestrator:
                     docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1), "content": content})
         
         # Sort documents by priority for demo:
-        # 1. Images (multi-modal demo - FIRST for dev speed)
-        # 2. Dossier (core context)
-        # 3. Videos (multi-modal demo)
-        # 4. Everything else
+        # 1. NVIDIA CES 2026 keynote transcript (FIRST - user priority)
+        # 2. Images (multi-modal demo)
+        # 3. Dossier (core context)
+        # 4. Videos (multi-modal demo)
+        # 5. Everything else
         def get_priority(doc):
-            if doc['category'] == 'image':
+            # NVIDIA transcript gets highest priority
+            if doc.get('name') == 'nvidia_CES_2026_keynote_transcript.txt':
                 return 0
-            elif doc['category'] == 'dossier':
+            elif doc['category'] == 'image':
                 return 1
-            elif doc['category'] == 'video':
+            elif doc['category'] == 'dossier':
                 return 2
-            else:
+            elif doc['category'] == 'video':
                 return 3
+            else:
+                return 4
         
         docs.sort(key=get_priority)
         
@@ -883,3 +1033,41 @@ class SimulationOrchestrator:
             )
         )
     
+    async def _analyze_text_for_metrics(self, text: str) -> list[MetricEvent]:
+        """
+        Two-Pass Extraction: Ask a small LLM to extract metrics from the analysis text.
+        Robust fallback for vision models.
+        """
+        if not self.use_ollama or not self.ollama_service:
+            return []
+            
+        extraction_prompt = (
+            f"Analyze the following observation and extract key entities and insights.\n"
+            f"TEXT: \"{text}\"\n\n"
+            f"INSTRUCTIONS:\n"
+            f"Output ONLY tags in this format:\n"
+            f"- [TOPIC: <Entity Name>]\n"
+            f"- [PATTERN: <Trend>]\n"
+            f"- [INSIGHT: <Conclusion>]\n"
+            f"- [FLAG: <Warning>]\n"
+            f"If nothing relevant is found, output: [INSIGHT: Routine analysis]"
+        )
+        
+        # Use fast model for extraction
+        try:
+            # We use a non-streaming call here (simulated by iterating the generator)
+            response_text = ""
+            async for chunk, _ in self.ollama_service.generate_step(
+                context="",
+                system_prompt="You are a data extraction engine. Output strictly formatted tags.",
+                user_prompt=extraction_prompt,
+                model="llama3.1:8b" # Always use the text model for extraction
+            ):
+                response_text += chunk
+            
+            logger.info(f"Two-Pass Extraction Result: {response_text}")
+            return self._extract_metrics(response_text)
+            
+        except Exception as e:
+            logger.error(f"Two-Pass Extraction failed: {e}")
+            return []

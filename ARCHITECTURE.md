@@ -19,7 +19,13 @@
 
 This demo simulates a **high-fidelity competitive intelligence analysis** for CES 2026 to showcase aiDAPTIV+'s value in managing memory during AI workloads on memory-constrained systems.
 
-The simulation processes real market intelligence through a strategic AI agent (@Virtual_PMM) that synthesizes competitor moves, breaking news, and developer signals to construct the "Memory Wall" narrative—validating Phison's market opportunity.
+The simulation processes real market intelligence (text documents, images, videos) through a strategic AI agent (@Virtual_PMM) powered by **Semantic Grounding Profiles (SGP)** that analyzes competitor moves, breaking news, and visual materials to construct the "Memory Wall" narrative—validating Phison's market opportunity.
+
+**Key Features:**
+- Multi-modal analysis (text, images via LLaVA vision model)
+- Real-time LLM streaming with accurate token counting
+- Batch-based context management for focused analysis
+- SGP-driven strategic reasoning for consistent insights
 
 ---
 
@@ -29,7 +35,7 @@ The simulation processes real market intelligence through a strategic AI agent (
 ┌─────────────────────────────────────────────────────────────┐
 │                         Frontend (React)                     │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐      │
-│  │ WarRoomDisplay│  │HardwareMonitor│  │ ImpactMetrics│      │
+│  │   Dashboard  │  │HardwareMonitor│  │ ImpactMetrics│      │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘      │
 │         │                  │                  │              │
 │         └──────────────────┴──────────────────┘              │
@@ -155,12 +161,17 @@ Phase 4 (70%): Swap back to llama3.1:8b
 
 #### **OllamaService** (`backend/services/ollama_service.py`)
 - Interfaces with Ollama API
-- Manages document context
-- Streams LLM responses
-- Defines analysis phases
+- Manages document context building
+- Streams LLM responses with accurate token counting
+- Handles vision models (LLaVA) for image analysis
 
-**Key Method:**
-- `generate_reasoning()` - Async generator that streams LLM responses
+**Key Methods:**
+- `generate_step()` - Streams LLM analysis for a specific document batch
+  - Accumulates all chunks to build complete response
+  - Tracks Time To First Token (TTFT) on first chunk
+  - Extracts real token counts from Ollama's final chunk
+  - Yields single result with accurate performance metrics
+- `build_context()` - Builds context from document list
 
 #### **WebSocket Handler** (`backend/api/websocket.py`)
 - Manages WebSocket connections
@@ -186,7 +197,7 @@ Phase 4 (70%): Swap back to llama3.1:8b
 - Displays model swapping status
 - Updates at 5Hz during simulation
 
-#### **WarRoomDisplay** (`src/components/WarRoomDisplay.tsx`)
+#### **Dashboard** (`src/components/Dashboard.tsx`)
 - Main UI container
 - Activity feed
 - Metrics cards
@@ -194,21 +205,49 @@ Phase 4 (70%): Swap back to llama3.1:8b
 
 ---
 
-## Analysis Phases
+## Analysis Flow
 
-The demo simulates a **5-phase multi-agent analysis**:
+The demo processes documents in **category-based batches** with SGP-driven analysis:
 
-| Phase | Trigger | Agent | Model | Task |
-|-------|---------|-------|-------|------|
-| 1. Strategic Dossier | 5% | @Virtual_PMM | llama3.1:8b | Initialize Phison Strategy |
-| 2. News Synthesis | 25% | @Virtual_PMM | llama3.1:8b | Analyze market signals |
-| 3. Social Signal | 50% | @Virtual_PMM | llama3.1:8b | Cross-ref developer pain |
-| 4. Value Formulation| 75% | @Virtual_PMM | llama3.1:8b | Construct Golden Narrative |
-| 5. Final Synthesis | 95% | @Virtual_PMM | llama3.1:8b | Executive Briefing |
+### Document Processing Order
+1. **Images** (multi-modal demo priority)
+   - Model: `llava:13b` (vision model)
+   - Agent: @Visual_Intel
+   - Analysis: Competitive positioning from infographics
 
-**Model Swaps:**
-- Phase 1→2: 8b → 14b (memory +5-7GB)
-- Phase 3→4: 14b → 8b (memory -5-7GB)
+2. **Dossiers** (strategic context)
+   - Model: `llama3.1:8b`
+   - Agent: @Virtual_PMM
+   - Analysis: Competitor weaknesses and attack vectors
+
+3. **News** (market validation)
+   - Model: `llama3.1:8b`
+   - Agent: @Virtual_PMM
+   - Analysis: Validation signals for memory bottleneck thesis
+
+4. **Social** (developer pain points)
+   - Model: `llama3.1:8b`
+   - Agent: @Virtual_PMM
+   - Analysis: Voice of customer, OOM complaints
+
+### Context Management
+- **Batch-based context**: LLM analyzes only current batch documents (not all accumulated)
+- **Prevents context pollution**: Each document gets focused analysis
+- **Example**: When analyzing Intel image, context contains only Intel image (not README + dossiers)
+
+### Semantic Grounding Profiles (SGP)
+
+Every document analysis is grounded by the SGP (`backend/sgp_config/virtual_pmm.json`), which provides:
+
+- **Product Identity**: aiDAPTIV+ positioning and value proposition
+- **Problem Context**: Memory constraints in AI workloads
+- **Solution Approach**: KV-cache offloading to SSD
+- **Competitive Landscape**: Samsung, Kioxia threat levels
+- **Analytical Frameworks**: How to analyze data (e.g., "follow the money", "second-order effects")
+- **Evidence Tiers**: How to weight sources (Tier 1: specs, Tier 2: analyst reports, Tier 3: social signals)
+- **Guardrails**: Forbidden claims (never claim performance without data)
+
+**SGP is applied to EVERY data source analysis**, ensuring consistent, grounded reasoning across all categories.
 
 ---
 

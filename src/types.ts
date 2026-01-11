@@ -15,9 +15,10 @@ export interface FeedItem {
     tools?: string[];
     parentId?: string;
     relatedDocIds?: string[];
+    dataSource?: string;  // Document being analyzed (e.g., "intel_panther_lake.png")
 }
 
-export type WorldModelStatus = 'vram' | 'ssd_cache' | 'pending';
+export type WorldModelStatus = 'vram' | 'ssd_cache' | 'pending' | 'processing';
 
 export interface WorldModelItem {
     id: string;

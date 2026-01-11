@@ -20,9 +20,10 @@ The demo proves that aiDAPTIV+ enables AI workloads that would otherwise crash o
 
 Simulates a **high-fidelity competitive intelligence analysis** for CES 2026, processing real market signals through a strategic AI agent (@Virtual_PMM) that:
 
-1. Analyzes competitor dossiers (Samsung, Kioxia)
-2. Synthesizes breaking news (NVIDIA Rubin, Intel Panther Lake)
-3. Cross-references social developer signals
+1. **Analyzes visual materials** (competitor infographics, booth photos) using LLaVA vision model
+2. Analyzes competitor dossiers (Samsung, Kioxia)
+3. Synthesizes breaking news (NVIDIA Rubin, Intel Panther Lake)
+4. Cross-references social developer signals
 4. Constructs the "Memory Wall" narrative validating Phison's market opportunity
 
 The demo uses **real system telemetry** and **real LLM generation** to show measurable memory offload to SSD.
@@ -106,7 +107,7 @@ npm run dev
 │   ├── services/         # Orchestrator, Memory Monitor, Ollama integration
 │   └── api/              # WebSocket + REST endpoints
 ├── src/                  # React frontend
-│   ├── components/       # WarRoomDisplay, HardwareMonitor
+│   ├── components/       # Dashboard, HardwareMonitor
 │   └── ScenarioContext.tsx  # State management
 ├── documents/ces2026/    # High-fidelity intelligence sources
 │   ├── dossier/          # Competitor profiles

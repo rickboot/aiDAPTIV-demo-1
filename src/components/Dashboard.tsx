@@ -169,18 +169,12 @@ const StatusBadge = ({ type }: { type: string }) => {
 
 
 
-export const WarRoomDisplay = () => {
+export const Dashboard = () => {
     const {
         feed, worldModel, metrics, currentActivity,
         isAnalysisRunning, startAnalysis, stopAnalysis,
-        activeScenario, tier, currentTier, upgradeMessage, toggleAidaptiv
+        activeScenario, tier
     } = useScenario();
-
-    // Create a stable reference to toggleAidaptiv
-    const handleEnableAidaptiv = () => {
-        console.log('WarRoomDisplay: handleEnableAidaptiv called');
-        toggleAidaptiv();
-    };
 
     const activeFileRef = React.useRef<HTMLDivElement>(null);
     const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -314,6 +308,11 @@ export const WarRoomDisplay = () => {
                                                             {item.stepType?.toUpperCase() || 'THOUGHT'}
                                                         </span>
                                                         <span className="text-[10px] text-cyan-200/60 font-mono tracking-tight">{item.author}</span>
+                                                        {item.dataSource && (
+                                                            <span className="text-[10px] text-amber-300/80 font-mono tracking-tight">
+                                                                → {item.dataSource}
+                                                            </span>
+                                                        )}
                                                         <span className="text-[10px] text-text-muted opacity-50">{item.timestamp}</span>
                                                     </div>
                                                     <StatusBadge type={item.badge} />
@@ -376,14 +375,20 @@ export const WarRoomDisplay = () => {
                                 <div className="space-y-1">
                                     {worldModel.filter(item => {
                                         if (dataFilter === 'ALL') return true;
-                                        if (dataFilter === 'LIVE') return item.status === 'pending' || (isAnalysisRunning && item.status === 'vram' && worldModel.findIndex(x => x.id === item.id) === worldModel.findIndex(x => x.status === 'pending') - 1); // Show pending + just finished
+                                        if (dataFilter === 'LIVE') return item.status === 'pending' || item.status === 'processing' || (isAnalysisRunning && item.status === 'vram' && worldModel.findIndex(x => x.id === item.id) === worldModel.findIndex(x => x.status === 'pending' || x.status === 'processing') - 1);
                                         if (dataFilter === 'ARCHIVE') return item.status === 'vram';
                                         return true;
-                                    }).map((item, i) => {
-                                        // Determine if this is the "active" item (first pending item)
+                                    }).map((item) => {
+                                        // Determine if this is the "active" item (processing OR first pending)
+                                        const processingIndex = worldModel.findIndex(x => x.status === 'processing');
                                         const pendingIndex = worldModel.findIndex(x => x.status === 'pending');
-                                        const isActualActive = isAnalysisRunning && item.id === worldModel[pendingIndex]?.id;
+
+                                        // Active is processing item if exists, otherwise first pending
+                                        const activeIndex = processingIndex !== -1 ? processingIndex : pendingIndex;
+
+                                        const isActualActive = isAnalysisRunning && item.id === worldModel[activeIndex]?.id;
                                         const isProcessed = item.status === 'vram';
+                                        const isProcessing = item.status === 'processing';
 
                                         return (
                                             <div
@@ -391,7 +396,7 @@ export const WarRoomDisplay = () => {
                                                 ref={isActualActive ? activeFileRef : null}
                                                 className={`px-3 py-2 rounded-lg transition-all duration-300 flex items-center justify-between border group ${isProcessed
                                                     ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-200 hover:bg-emerald-500/10'
-                                                    : isActualActive
+                                                    : isProcessing || isActualActive
                                                         ? 'bg-blue-500/20 border-blue-500/50 text-blue-100 shadow-[0_0_15px_rgba(59,130,246,0.2)] scale-[1.02]'
                                                         : 'bg-dashboard-card/20 border-transparent text-text-muted opacity-40 hover:opacity-70'
                                                     }`}

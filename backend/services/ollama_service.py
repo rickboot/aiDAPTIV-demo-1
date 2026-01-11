@@ -459,16 +459,22 @@ class OllamaService:
     ) -> AsyncGenerator[tuple[str, dict], None]:
         """
         Generate LLM reasoning for a specific agent step with custom prompts.
-        Allows flexible execution of Plan/Action/Observation/Thought.
+        
+        Clean streaming architecture:
+        1. Stream all chunks to build complete response
+        2. Track TTFT on first chunk only
+        3. Extract real token counts from final chunk
+        4. Yield once at end with complete text + accurate metrics
         
         Args:
             context: Document context
             system_prompt: Role and format instructions
             user_prompt: The specific task
             model: Model to use
+            image_paths: Optional list of image paths for vision models
         
         Yields:
-            Tuple of (thought_text, performance_metrics)
+            Tuple of (complete_text, performance_metrics)
         """
         full_user_prompt = f"""CONTEXT DATA:
 {context}
@@ -477,15 +483,11 @@ TASK:
 {user_prompt}
 """
         try:
-            import time
-            first_token_time = None
-            token_count = 0
-            ttft_ms = 0  # Store TTFT once calculated
-            
-            # Start timer immediately before API call to measure actual LLM performance
+            # Start timer before API call
             start_time = time.time()
+            first_token_time = None
             
-            # Prepare args
+            # Prepare chat arguments
             chat_args = {
                 'model': model if model else self.model,
                 'messages': [
@@ -494,21 +496,19 @@ TASK:
                 ],
                 'stream': True,
                 'options': {
-                    'num_predict': 300,  # Limit output tokens to prevent vision model timeouts
+                    'num_predict': 300,  # Keep it concise
                     'temperature': 0.7
                 }
             }
             
-            # For LLaVA (Vision), inject image if model is a vision model
+            # Inject images for vision models
             if chat_args['model'].startswith('llava'):
-                # Use provided image paths if available, otherwise fall back to hardcoded candidates
                 if image_paths and len(image_paths) > 0:
-                    # Use the provided image paths
                     encoded_images = []
                     for img_path_str in image_paths:
                         img_path = Path(img_path_str)
                         if img_path.exists():
-                            logger.info(f"Injecting image for LLaVA ({chat_args['model']}): {img_path.name}")
+                            logger.info(f"Injecting image for LLaVA: {img_path.name}")
                             encoded_images.append(self._encode_image(str(img_path)))
                         else:
                             logger.warning(f"Image path does not exist: {img_path}")
@@ -516,9 +516,9 @@ TASK:
                     if encoded_images:
                         chat_args['messages'][1]['images'] = encoded_images
                     else:
-                        logger.warning(f"No valid images found for {chat_args['model']}, proceeding without image")
+                        logger.warning(f"No valid images found, proceeding without image")
                 else:
-                    # Fallback for demo when no image_paths provided but model is llava
+                    # Fallback to demo image if no paths provided
                     img_candidates = [
                         Path(__file__).parent.parent.parent / "documents" / "ces2026" / "images" / "infographics" / "samsung_ssd_roadmap_1767950527033.png",
                         Path(__file__).parent.parent.parent / "documents" / "pmm" / "lite" / "competitors" / "competitor_ui.png"
@@ -529,57 +529,52 @@ TASK:
                             chat_args['messages'][1]['images'] = [self._encode_image(str(candidate))]
                             break
             
+            # Stream response from Ollama
             stream = ollama.chat(**chat_args)
             
+            # Accumulate complete response
+            complete_text = ""
+            final_chunk = None
             
-            buffer = ""
-            last_chunk = None
             for chunk in stream:
                 content = chunk['message']['content']
-                buffer += content
-                token_count += 1
+                complete_text += content
                 
-                # Record time to first token (only once)
-                if first_token_time is None:
+                # Record TTFT on first chunk only
+                if first_token_time is None and content:
                     first_token_time = time.time()
-                    ttft_ms = int((first_token_time - start_time) * 1000)
                 
-                # Store last chunk to get final token counts
-                last_chunk = chunk
-                
-                # Yield complete sentences for better readability
-                # Yield complete sentences for better readability
-                if any(punct in buffer for punct in ['. ', '! ', '? ', '\n']):
-                    # Calculate current performance (cumulative)
-                    elapsed = time.time() - start_time
-                    tokens_per_sec = token_count / elapsed if elapsed > 0 else 0
-                    avg_latency_ms = int((elapsed / token_count) * 1000) if token_count > 0 else 0
-                    
-                    # Do NOT yield chunks. Accumulate for final yield only.
-                    # We continue the loop to build full buffer.
-                    pass
+                # Keep reference to final chunk (contains token counts)
+                final_chunk = chunk
             
-            # Extract real token counts from final chunk
-            input_tokens = last_chunk.get('prompt_eval_count', 0) if last_chunk else 0
-            output_tokens = last_chunk.get('eval_count', token_count) if last_chunk else token_count
+            # Calculate metrics from final chunk
+            total_time = time.time() - start_time
+            ttft_ms = int((first_token_time - start_time) * 1000) if first_token_time else 0
             
-            # Yield any remaining content with real token counts
-            if buffer.strip():
-                elapsed = time.time() - start_time
-                tokens_per_sec = output_tokens / elapsed if elapsed > 0 else 0
-                avg_latency_ms = int((elapsed / output_tokens) * 1000) if output_tokens > 0 else 0
-                
-                performance = {
-                    "ttft_ms": ttft_ms,  # Keep constant
-                    "tokens_per_second": round(tokens_per_sec, 1),
-                    "latency_ms": avg_latency_ms,
-                    "status": "optimal" if tokens_per_sec > 30 else ("degraded" if tokens_per_sec > 15 else "critical"),
-                    "degradation_percent": 0,
-                    "input_tokens": input_tokens,  # Real input token count from Ollama
-                    "output_tokens": output_tokens  # Real output token count from Ollama
-                }
-                
-                yield (buffer.strip(), performance)
+            # Extract REAL token counts from Ollama's final chunk
+            input_tokens = final_chunk.get('prompt_eval_count', 0) if final_chunk else 0
+            output_tokens = final_chunk.get('eval_count', 0) if final_chunk else 0
+            
+            # Calculate performance metrics using real token counts
+            tokens_per_sec = output_tokens / total_time if total_time > 0 and output_tokens > 0 else 0
+            avg_latency_ms = int((total_time / output_tokens) * 1000) if output_tokens > 0 else 0
+            
+            performance = {
+                "ttft_ms": ttft_ms,
+                "tokens_per_second": round(tokens_per_sec, 1),
+                "latency_ms": avg_latency_ms,
+                "status": "optimal" if tokens_per_sec > 30 else ("degraded" if tokens_per_sec > 15 else "critical"),
+                "degradation_percent": 0,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens
+            }
+            
+            # Yield complete response with accurate metrics
+            if complete_text.strip():
+                yield (complete_text.strip(), performance)
+            else:
+                logger.warning("Empty response from LLM")
+                yield ("[Empty response]", performance)
         
         except Exception as e:
             logger.error(f"Error generating reasoning: {e}")

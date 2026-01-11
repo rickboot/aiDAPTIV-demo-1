@@ -55,6 +55,7 @@ class ThoughtData(BaseModel):
     parent_id: Optional[str] = None
     related_doc_ids: Optional[list[str]] = None
     author: Optional[str] = None
+    source: Optional[str] = None  # Document being analyzed (e.g., "intel_panther_lake.png")
 
 
 class ThoughtEvent(BaseModel):
@@ -131,6 +132,12 @@ class StatusEvent(BaseModel):
     """Status update event message."""
     type: Literal["status"] = "status"
     message: str = Field(..., description="Current activity status message")
+
+
+class DocumentStatusEvent(BaseModel):
+    """Explicit document status update."""
+    type: Literal["document_status"] = "document_status"
+    data: dict = Field(..., description="{index, status}")
 
 
 class ImpactSummaryData(BaseModel):

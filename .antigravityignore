@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Build outputs
+dist/
+build/
+*.pyc
+*.pyo
+*.pyd
+
+# Database and large data files
+backend/chroma_db/
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated files
+generated/
+backend/generated/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Large document directories (if they cause issues)
+# documents/

@@ -335,7 +335,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             id: `doc-${index}`,
                             type: type,
                             title: doc.name,
-                            memorySize: 0, // Don't show size until processed
+                            memorySize: doc.size_kb || 50, // Show actual size from backend immediately
                             lastAccessed: Date.now(),
                             status: 'pending'
                         };
@@ -357,7 +357,8 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                     stepType: message.data.step_type,
                     tools: message.data.tools,
                     parentId: message.data.parent_id,
-                    relatedDocIds: message.data.related_doc_ids
+                    relatedDocIds: message.data.related_doc_ids,
+                    dataSource: message.data.source  // Document being analyzed
                 };
                 setFeed(prev => [newThought, ...prev]);
                 break;
@@ -408,7 +409,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             title: message.data.name,
                             memorySize: message.data.size_kb || 50, // Use actual size from backend
                             lastAccessed: Date.now(),
-                            status: 'vram'
+                            status: 'processing'
                         };
                     } else {
                         // Update existing entry
@@ -417,9 +418,27 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             title: message.data.name,
                             type: getFileType(message.data.category),
                             memorySize: message.data.size_kb || 50,
-                            status: 'vram',
+                            status: 'processing',
                             lastAccessed: Date.now()
                         };
+                    }
+                    return newModel;
+                });
+                break;
+
+            case 'document_status':
+                console.log('Received document_status:', message.data);
+                setWorldModel(prev => {
+                    const newModel = [...prev];
+                    const { index, status } = message.data;
+                    if (newModel[index]) {
+                        console.log(`Updating doc ${index} status to ${status}`);
+                        newModel[index] = {
+                            ...newModel[index],
+                            status: status
+                        };
+                    } else {
+                        console.warn(`Doc ${index} not found in worldModel`);
                     }
                     return newModel;
                 });

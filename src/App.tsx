@@ -1,6 +1,5 @@
-import React from 'react';
 import { ScenarioProvider } from './ScenarioContext';
-import { WarRoomDisplay } from './components/WarRoomDisplay';
+import { Dashboard } from './components/Dashboard';
 import { HardwareMonitor } from './components/HardwareMonitor';
 import { BackendStatusBanner } from './components/BackendStatusBanner';
 
@@ -9,7 +8,7 @@ function App() {
     <ScenarioProvider>
       <div className="relative min-h-screen bg-black">
         <BackendStatusBanner />
-        <WarRoomDisplay />
+        <Dashboard />
         <HardwareMonitor />
       </div>
     </ScenarioProvider>
