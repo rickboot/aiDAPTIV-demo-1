@@ -1,17 +1,17 @@
 import type { Scenario, FeedItem, WorldModelItem } from './types';
 
-// SCENARIO: CES 2026 Supply Chain Monitor (Phison-specific)
-const CES2026_INITIAL_FEED: FeedItem[] = [
-    { id: 'ces-0', source: 'AI_Agent', author: '@Phison_Intel', content: 'CES 2026 monitoring active. Scanning for AI, DRAM, NAND, OEM, and competitive signals...', timestamp: '1h ago', badge: 'WAITING' },
+// SCENARIO: Marketing Intelligence (Phison-specific)
+const MARKETING_INTEL_INITIAL_FEED: FeedItem[] = [
+    { id: 'intel-0', source: 'AI_Agent', author: '@Virtual_PMM', content: 'Marketing intelligence monitoring active. Scanning for AI, DRAM, NAND, OEM, and competitive signals...', timestamp: '1h ago', badge: 'WAITING' },
 ];
 
 export const SCENARIOS: Scenario[] = [
     {
         id: 'ces2026',
-        title: 'CES 2026 Supply Chain Monitor',
+        title: 'Marketing Intelligence',
         subtitle: '21 Intelligence Sources - Competitive Dossiers',
-        description: 'Strategic Intelligence for aiDAPTIV+ (CES 2026)',
-        initialFeed: CES2026_INITIAL_FEED
+        description: 'Strategic Intelligence for aiDAPTIV+',
+        initialFeed: MARKETING_INTEL_INITIAL_FEED
     }
 ];
 
@@ -28,7 +28,7 @@ export const INITIAL_WORLD_MODEL: WorldModelItem[] = Array.from({ length: 96 }).
     };
 });
 
-export const MOCK_FEED = CES2026_INITIAL_FEED;
+export const MOCK_FEED = MARKETING_INTEL_INITIAL_FEED;
 
 // --- NEW DEMO DATA ---
 

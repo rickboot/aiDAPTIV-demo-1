@@ -496,8 +496,10 @@ TASK:
                 ],
                 'stream': True,
                 'options': {
-                    'num_predict': 300,  # Keep it concise
-                    'temperature': 0.7
+                    'num_predict': 800,  # Allow for thorough reasoning
+                    'temperature': 0.5,  # Lower for more focused, analytical output
+                    'top_p': 0.9,  # Focus on high-probability tokens
+                    'repeat_penalty': 1.1  # Reduce repetition
                 }
             }
             

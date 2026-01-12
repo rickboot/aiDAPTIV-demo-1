@@ -88,6 +88,36 @@ export interface CrashEvent {
     data: CrashData;
 }
 
+export interface RAGStorageData {
+    document_name: string;
+    document_category: string;
+    tokens: number;
+    total_documents_in_db: number;
+    timestamp: string;
+}
+
+export interface RAGStorageEvent {
+    type: 'rag_storage';
+    data: RAGStorageData;
+}
+
+export interface RAGRetrievalData {
+    query_preview: string;
+    query_length: number;
+    candidates_found: number;
+    documents_retrieved: number;
+    tokens_retrieved: number;
+    tokens_limit: number;
+    excluded_count: number;
+    retrieved_document_names: string[];
+    timestamp: string;
+}
+
+export interface RAGRetrievalEvent {
+    type: 'rag_retrieval';
+    data: RAGRetrievalData;
+}
+
 export interface Scenario {
     id: string;
     title: string;

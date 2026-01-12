@@ -202,6 +202,40 @@ class CrashEvent(BaseModel):
     data: CrashData
 
 
+class RAGStorageData(BaseModel):
+    """RAG document storage event data."""
+    document_name: str
+    document_category: str
+    tokens: int
+    total_documents_in_db: int
+    timestamp: str
+
+
+class RAGStorageEvent(BaseModel):
+    """RAG document storage event message."""
+    type: Literal["rag_storage"] = "rag_storage"
+    data: RAGStorageData
+
+
+class RAGRetrievalData(BaseModel):
+    """RAG retrieval event data."""
+    query_preview: str  # First 100 chars of query
+    query_length: int
+    candidates_found: int
+    documents_retrieved: int
+    tokens_retrieved: int
+    tokens_limit: int
+    excluded_count: int
+    retrieved_document_names: list[str]
+    timestamp: str
+
+
+class RAGRetrievalEvent(BaseModel):
+    """RAG retrieval event message."""
+    type: Literal["rag_retrieval"] = "rag_retrieval"
+    data: RAGRetrievalData
+
+
 # ═══════════════════════════════════════════════════════════════
 # API RESPONSE MODELS
 # ═══════════════════════════════════════════════════════════════

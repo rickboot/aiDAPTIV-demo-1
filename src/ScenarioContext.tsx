@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from 'react';
-import type { FeedItem, SystemState, PerformanceMetrics, Scenario, WorldModelItem, CrashData, CrashEvent, ImpactSummaryData } from './types';
+import type { FeedItem, SystemState, PerformanceMetrics, Scenario, WorldModelItem, CrashData, CrashEvent, ImpactSummaryData, RAGStorageEvent, RAGRetrievalEvent } from './types';
 import { SCENARIOS, INITIAL_METRICS } from './mockData';
 
 interface Metrics {
@@ -9,6 +9,12 @@ interface Metrics {
     critical_flags: number;
 }
 
+interface ActivityLogEntry {
+    timestamp: string;
+    activity: string;
+    type: 'status' | 'document' | 'rag_storage' | 'rag_retrieval' | 'thought' | 'metric' | 'error';
+}
+
 interface ScenarioContextType {
     feed: FeedItem[];
     worldModel: WorldModelItem[];
@@ -16,6 +22,7 @@ interface ScenarioContextType {
     metrics: Metrics;
     performance: PerformanceMetrics;
     currentActivity: string;
+    activityLog: ActivityLogEntry[];
     toggleAidaptiv: () => void;
     activeScenario: Scenario;
     setActiveScenario: (id: string) => void;
@@ -37,6 +44,8 @@ interface ScenarioContextType {
     impactSummary: ImpactSummaryData | null;
     backendConnected: boolean;
     backendError: string | null;
+    ollamaConnected: boolean;
+    ollamaError: string | null;
 }
 
 const ScenarioContext = createContext<ScenarioContextType | undefined>(undefined);
@@ -45,7 +54,7 @@ const WS_URL = 'ws://localhost:8000/ws/analysis';
 
 export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     // STATE
-    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[0]); // CES 2026 is now the only scenario
+    const [activeScenario, setActiveScenarioState] = useState<Scenario>(SCENARIOS[0]); // Marketing Intelligence scenario
     const [feed, setFeed] = useState<FeedItem[]>(activeScenario.initialFeed);
     const [worldModel, setWorldModel] = useState<WorldModelItem[]>([]); // Start empty, populate dynamically
     const [metrics, setMetrics] = useState<Metrics>(INITIAL_METRICS);
@@ -78,9 +87,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     const [crashDetails, setCrashDetails] = useState<CrashData | null>(null);
 
     const [currentActivity, setCurrentActivity] = useState<string>('Idle');
+    const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
     const [impactSummary, setImpactSummary] = useState<ImpactSummaryData | null>(null);
     const [backendConnected, setBackendConnected] = useState(true);
     const [backendError, setBackendError] = useState<string | null>(null);
+    const [ollamaConnected, setOllamaConnected] = useState(true);
+    const [ollamaError, setOllamaError] = useState<string | null>(null);
 
     // Define INITIAL_SYSTEM_STATE
     const INITIAL_SYSTEM_STATE: SystemState = {
@@ -135,6 +147,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         setMetrics(INITIAL_METRICS);
         setPerformance(INITIAL_PERFORMANCE);
         setCurrentActivity('Idle');
+        setActivityLog([]);
     };
 
 
@@ -206,6 +219,42 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         };
         fetchCurrentMemory();
     }, []);
+
+    // Check Ollama status on mount and when backend connects
+    useEffect(() => {
+        // Only check Ollama if backend is connected
+        if (!backendConnected) {
+            setOllamaConnected(true); // Reset to avoid stale errors
+            setOllamaError(null);
+            return;
+        }
+
+        const checkOllamaStatus = async () => {
+            try {
+                const response = await fetch('http://localhost:8000/api/ollama/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Ollama Status:', data);
+                    if (data.enabled && !data.available) {
+                        setOllamaConnected(false);
+                        setOllamaError(data.message || 'Ollama is not available');
+                    } else {
+                        setOllamaConnected(true);
+                        setOllamaError(null);
+                    }
+                } else {
+                    // If backend returns error, assume Ollama check failed
+                    setOllamaConnected(false);
+                    setOllamaError('Unable to check Ollama status');
+                }
+            } catch (error) {
+                console.error('Failed to check Ollama status:', error);
+                setOllamaConnected(false);
+                setOllamaError('Unable to check Ollama status. Make sure Ollama is running: ollama serve');
+            }
+        };
+        checkOllamaStatus();
+    }, [backendConnected]);
 
     // Fetch capabilities on mount and when aiDAPTIV+ changes
     useEffect(() => {
@@ -347,6 +396,15 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             case 'thought':
                 // Add thought to feed
                 setCurrentActivity('AI Reasoning...');
+                // Add to activity log (truncate long thoughts)
+                const thoughtPreview = message.data.text.length > 100 
+                    ? message.data.text.substring(0, 100) + '...'
+                    : message.data.text;
+                setActivityLog(prev => [...prev, {
+                    timestamp: message.data.timestamp || new Date().toISOString(),
+                    activity: `💭 ${message.data.author || '@AI_Analyst'}: ${thoughtPreview}`,
+                    type: 'thought'
+                }]);
                 const newThought: FeedItem = {
                     id: `ws-${Date.now()}`,
                     source: 'AI_Agent',
@@ -381,6 +439,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             case 'document':
                 // Update world model - mark document as processed
                 setCurrentActivity(`Processing: ${message.data.name}`);
+                // Add to activity log
+                setActivityLog(prev => [...prev, {
+                    timestamp: new Date().toISOString(),
+                    activity: `📄 Processing document: ${message.data.name} (${message.data.category}, ${message.data.size_kb} KB)`,
+                    type: 'document'
+                }]);
                 setWorldModel(prev => {
                     const newModel = [...prev];
                     const index = message.data.index;
@@ -412,13 +476,15 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             status: 'processing'
                         };
                     } else {
-                        // Update existing entry
+                        // Update existing entry - but don't reset status if already completed
+                        const currentStatus = newModel[index].status;
                         newModel[index] = {
                             ...newModel[index],
                             title: message.data.name,
                             type: getFileType(message.data.category),
                             memorySize: message.data.size_kb || 50,
-                            status: 'processing',
+                            // Only set to processing if not already completed (vram)
+                            status: currentStatus === 'vram' ? 'vram' : 'processing',
                             lastAccessed: Date.now()
                         };
                     }
@@ -456,6 +522,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             case 'status':
                 // Update current activity status
                 setCurrentActivity(message.message);
+                // Add to activity log
+                setActivityLog(prev => [...prev, {
+                    timestamp: new Date().toISOString(),
+                    activity: message.message,
+                    type: 'status'
+                }]);
                 break;
 
             case 'metric':
@@ -464,6 +536,12 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                     ...prev,
                     [message.data.name]: message.data.value
                 }));
+                // Add to activity log
+                setActivityLog(prev => [...prev, {
+                    timestamp: new Date().toISOString(),
+                    activity: `📈 Metric updated: ${message.data.name} = ${message.data.value}`,
+                    type: 'metric'
+                }]);
                 break;
 
             case 'complete':
@@ -501,6 +579,52 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 }
                 break;
 
+            case 'rag_storage':
+                const ragStorageEvent = message as RAGStorageEvent;
+                console.log('RAG Storage:', ragStorageEvent.data);
+                // Add to feed as a development activity
+                setFeed(prev => [{
+                    id: `rag_storage_${Date.now()}`,
+                    source: 'AI_Agent',
+                    author: '@RAG',
+                    content: `📦 Stored "${ragStorageEvent.data.document_name}" in Vector DB (${ragStorageEvent.data.tokens} tokens, total: ${ragStorageEvent.data.total_documents_in_db} docs)`,
+                    timestamp: ragStorageEvent.data.timestamp,
+                    badge: 'COMPLETE',
+                    stepType: 'tool_use',
+                    tools: ['vector_db']
+                }, ...prev]);
+                // Add to activity log
+                setActivityLog(prev => [...prev, {
+                    timestamp: ragStorageEvent.data.timestamp,
+                    activity: `📦 Stored "${ragStorageEvent.data.document_name}" in Vector DB (${ragStorageEvent.data.tokens} tokens, total: ${ragStorageEvent.data.total_documents_in_db} docs)`,
+                    type: 'rag_storage'
+                }]);
+                break;
+
+            case 'rag_retrieval':
+                const ragRetrievalEvent = message as RAGRetrievalEvent;
+                console.log('RAG Retrieval:', ragRetrievalEvent.data);
+                // Add to feed as a development activity
+                const retrievalContent = ragRetrievalEvent.data.documents_retrieved > 0
+                    ? `🔍 Retrieved ${ragRetrievalEvent.data.documents_retrieved} documents (${ragRetrievalEvent.data.tokens_retrieved}/${ragRetrievalEvent.data.tokens_limit} tokens) from ${ragRetrievalEvent.data.candidates_found} candidates. Excluded ${ragRetrievalEvent.data.excluded_count} duplicates.`
+                    : `🔍 No documents retrieved (${ragRetrievalEvent.data.candidates_found} candidates found, all excluded)`;
+                setFeed(prev => [{
+                    id: `rag_retrieval_${Date.now()}`,
+                    source: 'AI_Agent',
+                    author: '@RAG',
+                    content: retrievalContent,
+                    timestamp: ragRetrievalEvent.data.timestamp,
+                    badge: 'COMPLETE',
+                    stepType: 'tool_use',
+                    tools: ['vector_db', 'semantic_search']
+                }, ...prev]);
+                // Add to activity log
+                setActivityLog(prev => [...prev, {
+                    timestamp: ragRetrievalEvent.data.timestamp,
+                    activity: retrievalContent,
+                    type: 'rag_retrieval'
+                }]);
+                break;
 
             default:
                 console.warn('Unknown message type:', message.type);
@@ -524,6 +648,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             metrics,
             performance,
             currentActivity,
+            activityLog,
             toggleAidaptiv,
             activeScenario,
             setActiveScenario,
@@ -544,7 +669,9 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             elapsedSeconds,
             impactSummary,
             backendConnected,
-            backendError
+            backendError,
+            ollamaConnected,
+            ollamaError
         }}>
             {children}
         </ScenarioContext.Provider>

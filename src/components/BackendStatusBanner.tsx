@@ -1,27 +1,50 @@
 import { useScenario } from '../ScenarioContext';
 
 export const BackendStatusBanner = () => {
-    const { backendConnected, backendError } = useScenario();
+    const { backendConnected, backendError, ollamaConnected, ollamaError } = useScenario();
 
-    if (backendConnected || !backendError) {
+    const hasBackendError = !backendConnected && backendError;
+    const hasOllamaError = !ollamaConnected && ollamaError;
+
+    if (!hasBackendError && !hasOllamaError) {
         return null;
     }
 
     return (
         <div className="fixed top-0 left-0 right-0 z-50 bg-red-600 text-white px-4 py-3 shadow-lg">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                        <div className="font-semibold">Backend Connection Error</div>
-                        <div className="text-sm opacity-90">{backendError}</div>
+            <div className="max-w-7xl mx-auto space-y-2">
+                {hasBackendError && (
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <div className="font-semibold">Backend Connection Error</div>
+                                <div className="text-sm opacity-90">{backendError}</div>
+                            </div>
+                        </div>
+                        <div className="text-sm opacity-75">
+                            Run: <code className="bg-red-700 px-2 py-1 rounded">python3 backend/main.py</code>
+                        </div>
                     </div>
-                </div>
-                <div className="text-sm opacity-75">
-                    Run: <code className="bg-red-700 px-2 py-1 rounded">python3 backend/main.py</code>
-                </div>
+                )}
+                {hasOllamaError && (
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <div>
+                                <div className="font-semibold">Ollama Service Error</div>
+                                <div className="text-sm opacity-90">{ollamaError}</div>
+                            </div>
+                        </div>
+                        <div className="text-sm opacity-75">
+                            Run: <code className="bg-red-700 px-2 py-1 rounded">ollama serve</code>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

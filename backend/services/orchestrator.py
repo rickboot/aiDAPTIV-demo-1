@@ -13,12 +13,12 @@ from models.schemas import (
     ScenarioConfig, ThoughtEvent, ThoughtData, MemoryEvent, DocumentEvent,
     DocumentData, DocumentStatusEvent, MetricEvent, MetricData, CompleteEvent, CompleteData,
     CrashEvent, CrashData, FindingsData, MemoryStatsData, PerformanceEvent, PerformanceData,
-    ImpactSummaryEvent, ImpactSummaryData, StatusEvent
+    ImpactSummaryEvent, ImpactSummaryData, StatusEvent,
+    RAGStorageEvent, RAGStorageData, RAGRetrievalEvent, RAGRetrievalData
 )
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
 from services.ollama_service import OllamaService, ANALYSIS_PHASES, ANALYSIS_PHASES_CES
-from services.image_gen_service import ImageGenService
 from services.memory_tier_manager import MemoryTierManager
 from services.context_manager import ContextManager
 from services.session_manager import SessionManager
@@ -58,93 +58,6 @@ SCENARIOS = {
         memory_target_gb=14.0,  # Higher target due to video transcripts + dossiers
         crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
-}
-
-
-# ═══════════════════════════════════════════════════════════════
-# AI THOUGHT TEMPLATES
-# ═══════════════════════════════════════════════════════════════
-
-THOUGHT_PHASES_PMM = {
-    "loading": {
-        "text": "Plan: Load visual corpus containing {visual_count} competitor UI screenshots",
-        "status": "PROCESSING",
-        "trigger_percent": 5,
-        "step_type": "plan"
-    },
-    "analyzing": {
-        "text": "Analyzing Competitor X homepage redesign captured Jan 3, 2026",
-        "status": "ANALYZING",
-        "trigger_percent": 20,
-        "step_type": "thought",
-        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2"]
-    },
-    "cross_ref": {
-        "text": "Cross-referencing visual changes with arXiv paper 2401.12847",
-        "status": "ACTIVE",
-        "trigger_percent": 40,
-        "step_type": "action",
-        "tools": ["arxiv_search", "rag_pipeline"]
-    },
-    "pattern": {
-        "text": "Observation: Detected {shifts} of {total_competitors} competitors shifting to agentic architecture",
-        "status": "ACTIVE",
-        "trigger_percent": 60,
-        "step_type": "observation"
-    },
-    "memory_pressure": {
-        "text": "⚠️ Memory pressure at 95% - triggering aiDAPTIV+ offload to SSD cache",
-        "status": "WARNING",
-        "trigger_percent": 85,
-        "step_type": "tool_use",
-        "tools": ["memory_manager"]
-    },
-    "complete": {
-        "text": "✅ Analysis complete: Competitive positioning gap identified",
-        "status": "COMPLETE",
-        "step_type": "thought"
-    }
-}
-
-THOUGHT_PHASES_CES = {
-    "loading": {
-        "text": "Plan: Monitor CES 2026 keynote streams and competitive announcements",
-        "status": "PROCESSING",
-        "trigger_percent": 5,
-        "step_type": "plan"
-    },
-    "analyzing": {
-        "text": "Analyzing Samsung booth demo video - checking for PM9E1 references",
-        "status": "ANALYZING",
-        "trigger_percent": 20,
-        "step_type": "thought",
-        "related_doc_ids": ["samsung_booth_demo.txt", "pm9e1_specs.txt"]
-    },
-    "cross_ref": {
-        "text": "Cross-referencing NVIDIA keynote transcript with phison_profile.txt",
-        "status": "ACTIVE",
-        "trigger_percent": 40,
-        "step_type": "action",
-        "tools": ["video_analysis", "rag_pipeline"]
-    },
-    "pattern": {
-        "text": "Observation: Detected consistent 'AI on Device' messaging from Intel, AMD, and NVIDIA",
-        "status": "ACTIVE",
-        "trigger_percent": 60,
-        "step_type": "observation"
-    },
-    "memory_pressure": {
-        "text": "⚠️ Video transcript context size > 24GB - triggering aiDAPTIV+ offload",
-        "status": "WARNING",
-        "trigger_percent": 85,
-        "step_type": "tool_use",
-        "tools": ["memory_manager"]
-    },
-    "complete": {
-        "text": "✅ Analysis complete: Samsung PM9E1 threat vector confirmed",
-        "status": "COMPLETE",
-        "step_type": "thought"
-    }
 }
 
 
@@ -202,9 +115,6 @@ class SimulationOrchestrator:
         # Multi-modal services
         self.memory_tier_manager = MemoryTierManager()
         self.current_tier = self.memory_tier_manager.detect_tier(aidaptiv_enabled)
-        self.image_gen_service = None
-        if self.current_tier == "pro":
-            self.image_gen_service = ImageGenService()
             
         # Persistent state
         self.context_manager = ContextManager()
@@ -447,13 +357,7 @@ class SimulationOrchestrator:
                     yield agent_event
 
             
-            # 6. SEND METRIC UPDATES (REAL-TIME)
-            # Metrics are now yielded directly from the agent cycle based on LLM output tags.
-            # We preserve this hook just in case we need fallback logic, but disabling the fake updates.
-            # if doc_index % max(1, total_docs // 10) == 0:  # Update every ~10%
-            #     metric_events = self._create_metric_updates(progress_percent)
-            #     for metric_event in metric_events:
-            #         yield metric_event.model_dump()
+            # 6. METRICS are yielded directly from the agent cycle based on LLM output tags
             
             # 7. WAIT FOR NEXT TICK (only if not about to run agent cycle)
             if not is_batch_complete:
@@ -579,7 +483,20 @@ class SimulationOrchestrator:
         doc_text = current_doc.get('content', '') or current_doc.get('text', '')
         est_tokens = len(doc_text) // 4 if doc_text else int(current_doc.get('size_kb', 0) * 200)
         
-        self.context_manager.add_document(current_doc, est_tokens)
+        add_result = self.context_manager.add_document(current_doc, est_tokens)
+        
+        # Emit RAG storage event if document was stored
+        if add_result.get("rag_storage"):
+            rag_storage = add_result["rag_storage"]
+            yield RAGStorageEvent(
+                data=RAGStorageData(
+                    document_name=rag_storage["document_name"],
+                    document_category=rag_storage["document_category"],
+                    tokens=rag_storage["tokens"],
+                    total_documents_in_db=rag_storage["total_documents_in_db"],
+                    timestamp=datetime.utcnow().isoformat()
+                )
+            ).model_dump()
         
         # Save context state to disk
         context_state_path = self.session_manager.data_dir / "context_state.json"
@@ -595,8 +512,93 @@ class SimulationOrchestrator:
             if 0 <= batch_doc_index < len(self.processed_documents):
                 batch_documents.append(self.processed_documents[batch_doc_index])
         
-        dynamic_context = self.ollama_service.build_context(batch_documents)
-        logger.info(f"Built context from {len(batch_documents)} batch documents (not all {len(self.context_manager.active_documents)} active docs)")
+        # RAG: Retrieve relevant context from Vector DB to augment current batch
+        rag_documents = []
+        if batch_documents and self.context_manager.chroma_client:
+            # Build query from current document(s) - use first doc's content as query
+            # Extract key terms/topics for better semantic search
+            query_text = ""
+            batch_content_hashes = set()
+            batch_ids = set()  # Track document IDs to exclude from retrieval
+            
+            for doc in batch_documents:
+                doc_content = doc.get('content', '') or doc.get('text', '')
+                if doc_content:
+                    # Use first 500 chars as query (or full content if shorter)
+                    if not query_text:
+                        query_text = doc_content[:500] if len(doc_content) > 500 else doc_content
+                    # Track content hashes to avoid duplicates
+                    batch_content_hashes.add(hash(doc_content[:100]))  # Use first 100 chars as hash
+                    # Track document name/ID to exclude from retrieval
+                    doc_name = doc.get('name', '')
+                    if doc_name:
+                        batch_ids.add(doc_name.lower())
+            
+            if query_text:
+                logger.info(f"RAG: Starting retrieval for document batch (query length: {len(query_text)} chars, excluding {len(batch_ids)} current docs)")
+                try:
+                    # Retrieve relevant documents from Vector DB
+                    # Exclude current batch documents by title to avoid retrieving what we're already processing
+                    retrieval_result = self.context_manager.retrieve_context(
+                        query_text, 
+                        max_tokens=3000,
+                        exclude_titles=batch_ids
+                    )
+                    
+                    # Handle new return format: (documents, retrieval_info) or just documents
+                    if isinstance(retrieval_result, tuple):
+                        retrieved, retrieval_info = retrieval_result
+                    else:
+                        retrieved = retrieval_result
+                        retrieval_info = None
+                    
+                    if retrieved:
+                        logger.info(f"RAG: Retrieved {len(retrieved)} documents from Vector DB, filtering duplicates...")
+                        # Convert retrieved docs to same format as batch_documents
+                        # Filter out documents that are already in the current batch
+                        for ret_doc in retrieved:
+                            ret_content = ret_doc.get('content', '')
+                            if ret_content:
+                                # Check if this document is already in the batch
+                                ret_hash = hash(ret_content[:100])
+                                if ret_hash not in batch_content_hashes:
+                                    rag_documents.append({
+                                        'name': ret_doc.get('metadata', {}).get('title', 'Retrieved Document'),
+                                        'category': ret_doc.get('metadata', {}).get('source', 'archive'),
+                                        'content': ret_content,
+                                        'size_kb': len(ret_content) / 1024
+                                    })
+                                    batch_content_hashes.add(ret_hash)  # Track to avoid duplicates in RAG results
+                        logger.info(f"RAG: Added {len(rag_documents)} unique documents from Vector DB")
+                        
+                        # Emit RAG retrieval event
+                        if retrieval_info:
+                            yield RAGRetrievalEvent(
+                                data=RAGRetrievalData(
+                                    query_preview=retrieval_info["query_preview"],
+                                    query_length=retrieval_info["query_length"],
+                                    candidates_found=retrieval_info["candidates_found"],
+                                    documents_retrieved=retrieval_info["documents_retrieved"],
+                                    tokens_retrieved=retrieval_info["tokens_retrieved"],
+                                    tokens_limit=retrieval_info["tokens_limit"],
+                                    excluded_count=retrieval_info["excluded_count"],
+                                    retrieved_document_names=retrieval_info["retrieved_document_names"],
+                                    timestamp=datetime.utcnow().isoformat()
+                                )
+                            ).model_dump()
+                    else:
+                        logger.info(f"RAG: No documents retrieved from Vector DB (may be empty or no matches)")
+                except Exception as e:
+                    logger.warning(f"RAG retrieval failed: {e}, continuing without RAG")
+        
+        # Combine batch documents with RAG-retrieved documents
+        all_documents = batch_documents + rag_documents
+        dynamic_context = self.ollama_service.build_context(all_documents)
+        
+        if rag_documents:
+            logger.info(f"Built context from {len(batch_documents)} batch + {len(rag_documents)} RAG documents")
+        else:
+            logger.info(f"Built context from {len(batch_documents)} batch documents (no RAG)")
         
         for step in steps:
             try:
@@ -623,7 +625,7 @@ class SimulationOrchestrator:
                     image_paths.append(current_doc['path'])
                 
                 # Append metric reminder to the user prompt to ensure compliance
-                step_prompt = step['prompt'] + "\n\nREMINDER: You MUST use tags like [TOPIC: x], [PATTERN: x], [INSIGHT: x] in your output."
+                step_prompt = step['prompt'] + "\n\nIMPORTANT: Embed tags naturally within your analysis: [TOPIC: name], [PATTERN: description], [INSIGHT: conclusion], [FLAG: issue]. Write clear, analytical prose that demonstrates deep understanding of the context."
                 
                 async for thought_text, metrics in self.ollama_service.generate_step(
                     context=dynamic_context,
@@ -839,183 +841,6 @@ class SimulationOrchestrator:
                 size_kb=doc.get("size_kb", 50.0)  # Default to 50KB if not provided
             )
         )
-    
-    async def _check_and_create_thought(self, progress_percent: float) -> Optional[ThoughtEvent]:
-        """Check if a thought should be sent at this progress point."""
-        # Select phases based on scenario
-        phases = THOUGHT_PHASES_CES if self.config.scenario == "ces2026" else THOUGHT_PHASES_PMM
-        
-        for phase_name, phase_data in phases.items():
-            trigger = phase_data["trigger_percent"]
-            
-            # Send thought if we've crossed the trigger and haven't sent it yet
-            if progress_percent >= trigger and phase_name not in self.thoughts_sent:
-                self.thoughts_sent.add(phase_name)
-                
-                # Skip memory_pressure thought if aiDAPTIV+ is disabled
-                if phase_name == "memory_pressure" and not self.aidaptiv_enabled:
-                    continue
-                
-                # Format text with dynamic values (safe get for optional params)
-                text = phase_data["text"]
-                if self.config.scenario == "pmm":
-                    text = text.format(
-                        visual_count=847 if self.config.tier == "large" else 151,
-                        shifts=3 if self.config.tier == "large" else 2,
-                        total_competitors=12 if self.config.tier == "large" else 3
-                    )
-                
-                return ThoughtEvent(
-                    data=ThoughtData(
-                        text=text,
-                        status=phase_data["status"],
-                        timestamp=datetime.utcnow().isoformat() + "Z",
-                        step_type=phase_data.get("step_type", "thought"),
-                        tools=phase_data.get("tools"),
-                        related_doc_ids=phase_data.get("related_doc_ids")
-                    )
-                )
-        
-        return None
-    
-    async def _generate_llm_thought(self, progress_percent: float) -> AsyncGenerator[ThoughtEvent, None]:
-        """
-        Generate LLM-based thought for current progress using Ollama.
-        Falls back to canned response if Ollama unavailable.
-        
-        Args:
-            progress_percent: Current simulation progress
-        
-        Yields:
-            ThoughtEvent objects with LLM-generated reasoning
-        """
-        # Select phases based on scenario
-        phases = ANALYSIS_PHASES_CES if self.config.scenario == "ces2026" else ANALYSIS_PHASES
-        
-        # Find which phase we're in
-        current_phase = None
-        for phase_key, phase_data in phases.items():
-            trigger = phase_data["trigger_percent"]
-            if progress_percent >= trigger and phase_key not in self.thoughts_sent:
-                current_phase = phase_key
-                self.thoughts_sent.add(phase_key)
-                break
-        
-        if not current_phase:
-            return  # No phase to process
-        
-        # Use Ollama if available
-        if self.use_ollama and self.ollama_service:
-            try:
-                # Build context DYNAMICALLY from processed documents only
-                # This ensures the LLM can only "see" what has actually arrived in the simulation
-                dynamic_context = self.ollama_service.build_context(self.processed_documents)
-                
-                # Check for model swap
-                val_phase = phases[current_phase] # Use the selected phases dict
-                target_model = val_phase.get("model", "llama3.1:8b")
-                if target_model != self.current_model:
-                     yield StatusEvent(message=f"Offloading Model: {self.current_model}...").model_dump()
-                     await asyncio.sleep(2.0)  # Pause for offload
-                     
-                     yield StatusEvent(message=f"Loading Model: {target_model}...").model_dump()
-                     # WebSocket's continuous monitor will show memory changes during load
-                     
-                     self.current_model = target_model
-                     # Update memory monitor with new model size
-                     self.memory_monitor.set_model_size(target_model)
-                     
-                     # Force immediate update
-                     memory_data, _ = self.memory_monitor.calculate_memory()
-                     yield MemoryEvent(data=memory_data).model_dump()
-
-                logger.info(f"Generating LLM thought for phase: {current_phase} with dynamic context")
-                async for thought_text, performance_metrics in self.ollama_service.generate_reasoning(
-                    dynamic_context, 
-                    current_phase,
-                    scenario=self.config.scenario # Pass scenario to service
-                ):
-                    # Track cumulative tokens for TCO/billing (separate from memory usage)
-                    if 'input_tokens' in performance_metrics:
-                        self.cumulative_input_tokens += performance_metrics['input_tokens']
-                    if 'output_tokens' in performance_metrics:
-                        self.cumulative_output_tokens += performance_metrics['output_tokens']
-                    logger.info(f"Cumulative tokens for billing: {self.cumulative_input_tokens} input + {self.cumulative_output_tokens} output")
-                    
-                    # Yield thought event
-                    yield ThoughtEvent(
-                        data=ThoughtData(
-                            text=thought_text,
-                            status="ANALYZING",
-                            timestamp=datetime.utcnow().isoformat() + "Z",
-                            step_type=val_phase.get("step_type", "thought"),
-                            tools=val_phase.get("tools"),
-                            related_doc_ids=val_phase.get("related_doc_ids"),
-                            author=val_phase.get("author")
-                        )
-                    ).model_dump()
-                    
-                    # Yield live performance metrics from Ollama
-                    yield PerformanceEvent(data=PerformanceData(**performance_metrics)).model_dump()
-                    
-                    # Throttle streaming for readability
-                    await asyncio.sleep(app_config.THOUGHT_STREAM_DELAY)
-            
-            except Exception as e:
-                logger.error(f"Error generating LLM thought: {e}")
-                # Fall back to canned response
-                canned_thought = await self._check_and_create_thought(progress_percent)
-                if canned_thought:
-                    yield canned_thought.model_dump()
-        else:
-            # Use canned response
-            canned_thought = await self._check_and_create_thought(progress_percent)
-            if canned_thought:
-                yield canned_thought.model_dump()
-    
-    def _create_metric_updates(self, progress_percent: float) -> list[MetricEvent]:
-        """Create metric update events based on progress."""
-        events = []
-        tier = self.config.tier
-        
-        # Calculate incremental values
-        if tier == "lite":
-            topics_target = 150
-            patterns_target = 45
-            insights_target = 12
-            flags_target = 3
-        else:
-            topics_target = 2500
-            patterns_target = 800
-            insights_target = 300
-            flags_target = 25
-        
-        # Increment metrics proportionally
-        topics_current = int(topics_target * (progress_percent / 100))
-        patterns_current = int(patterns_target * (progress_percent / 100))
-        insights_current = int(insights_target * (progress_percent / 100))
-        
-        # Flags jump at 80%
-        flags_current = flags_target if progress_percent >= 80 else int(flags_target * 0.2)
-        
-        # Update and create events
-        if topics_current != self.metrics.get("key_topics", 0):
-            self.metrics["key_topics"] = topics_current
-            events.append(MetricEvent(data=MetricData(name="key_topics", value=topics_current)))
-
-        if patterns_current != self.metrics.get("patterns_detected", 0):
-            self.metrics["patterns_detected"] = patterns_current
-            events.append(MetricEvent(data=MetricData(name="patterns_detected", value=patterns_current)))
-        
-        if insights_current != self.metrics.get("insights_generated", 0):
-            self.metrics["insights_generated"] = insights_current
-            events.append(MetricEvent(data=MetricData(name="insights_generated", value=insights_current)))
-        
-        if flags_current != self.metrics.get("critical_flags", 0):
-            self.metrics["critical_flags"] = flags_current
-            events.append(MetricEvent(data=MetricData(name="critical_flags", value=flags_current)))
-        
-        return events
     
     def _create_crash_event(self, memory_data, progress, reason: str) -> CrashEvent:
         """Create a crash event."""

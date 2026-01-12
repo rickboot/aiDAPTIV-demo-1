@@ -3,9 +3,22 @@ import ReactMarkdown from 'react-markdown';
 import { useScenario } from '../ScenarioContext';
 import { SCENARIOS } from '../mockData';
 
+// Strip inline metric markers from content for display
+const stripMetricMarkers = (content: string): string => {
+    // Remove [TOPIC: ...], [PATTERN: ...], [INSIGHT: ...], [FLAG: ...] markers
+    return content
+        .replace(/\[TOPIC:\s*[^\]]+\]/gi, '')
+        .replace(/\[PATTERN:\s*[^\]]+\]/gi, '')
+        .replace(/\[INSIGHT:\s*[^\]]+\]/gi, '')
+        .replace(/\[FLAG:\s*[^\]]+\]/gi, '')
+        .replace(/\s+/g, ' ') // Clean up multiple spaces
+        .trim();
+};
+
 import { SettingsModal } from './SettingsModal';
 import { AboutModal } from './AboutModal';
 import { AboutAidaptivModal } from './AboutAidaptivModal';
+import { ActivityLogModal } from './ActivityLogModal';
 
 import { CrashOverlay } from './CrashOverlay';
 
@@ -132,15 +145,15 @@ const StatCard = ({ title, value, trend, color, icon }: any) => {
     };
 
     return (
-        <div className="bg-dashboard-card p-2.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group">
+        <div className="bg-dashboard-card p-1.5 rounded-lg border border-dashboard-border/50 shadow-sm relative overflow-hidden group">
             <div className="relative z-10">
-                <div className="flex justify-between mb-1">
-                    <h4 className="text-[9px] font-bold text-text-muted uppercase tracking-widest">{title}</h4>
-                    <span className="text-base grayscale opacity-50">{icon}</span>
-                </div>
-                <div className="flex items-end justify-between">
-                    <div className={`text-2xl font-bold ${colors[color]} tracking-tight transition-all duration-300`}>{value}</div>
-                    <div className="mb-0.5 text-[9px] font-medium bg-white/5 px-1.5 py-0.5 rounded text-white/70">{trend}</div>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <span className="text-sm grayscale opacity-50 shrink-0">{icon}</span>
+                        <div className={`text-lg font-bold ${colors[color]} tracking-tight transition-all duration-300 shrink-0`}>{value}</div>
+                        <h4 className="text-[8px] font-bold text-text-secondary/60 uppercase tracking-widest truncate">{title}</h4>
+                    </div>
+                    <div className="text-[8px] font-medium bg-white/5 px-1 py-0.5 rounded text-white/70 shrink-0">{trend}</div>
                 </div>
             </div>
         </div>
@@ -171,7 +184,7 @@ const StatusBadge = ({ type }: { type: string }) => {
 
 export const Dashboard = () => {
     const {
-        feed, worldModel, metrics, currentActivity,
+        feed, worldModel, metrics, currentActivity, activityLog,
         isAnalysisRunning, startAnalysis, stopAnalysis,
         activeScenario, tier
     } = useScenario();
@@ -181,6 +194,7 @@ export const Dashboard = () => {
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     const [focusedThoughtId, setFocusedThoughtId] = React.useState<string | null>(null);
     const [dataFilter, setDataFilter] = React.useState<'ALL' | 'LIVE' | 'ARCHIVE'>('ALL');
+    const [showActivityLog, setShowActivityLog] = React.useState(false);
 
     // Auto-scroll effect for Data Grid (only if ALL or LIVE)
     React.useEffect(() => {
@@ -233,20 +247,34 @@ export const Dashboard = () => {
                     </div>
 
                     {/* CURRENT ACTIVITY STATUS - Compact */}
-                    <div className="bg-dashboard-card border border-dashboard-border/50 rounded-lg p-2.5">
+                    <div 
+                        className="bg-dashboard-card border border-dashboard-border/50 rounded-lg p-2.5 cursor-pointer hover:bg-dashboard-bg/50 transition-colors"
+                        onClick={() => setShowActivityLog(true)}
+                        title="Click to view full activity log"
+                    >
                         <div className="flex items-center gap-3">
                             <div className={`w-2 h-2 rounded-full ${isAnalysisRunning
                                 ? 'bg-blue-500 animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]'
                                 : 'bg-gray-600'
                                 }`} />
                             <div className="flex-1">
-                                <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider mb-0.5">
-                                    Current Activity
+                                <div className="flex items-center justify-between mb-0.5">
+                                    <div className="text-[10px] uppercase font-bold text-text-secondary tracking-wider">
+                                        Current Activity
+                                    </div>
+                                    <div className="text-[9px] text-text-muted">
+                                        {activityLog.length} entries
+                                    </div>
                                 </div>
                                 <div className={`text-sm font-medium ${isAnalysisRunning ? 'text-blue-300' : 'text-text-muted'
                                     }`}>
                                     {currentActivity}
                                 </div>
+                            </div>
+                            <div className="text-text-muted hover:text-text-primary transition-colors">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
                             </div>
                         </div>
                     </div>
@@ -324,7 +352,7 @@ export const Dashboard = () => {
                                                         ? 'text-white'
                                                         : 'text-text-primary opacity-90'
                                                     }`}>
-                                                    <ReactMarkdown>{item.content}</ReactMarkdown>
+                                                    <ReactMarkdown>{stripMetricMarkers(item.content)}</ReactMarkdown>
                                                 </div>
                                                 {/* Related Docs Pill */}
                                                 {item.relatedDocIds && item.relatedDocIds.length > 0 && (
@@ -386,9 +414,13 @@ export const Dashboard = () => {
                                         // Active is processing item if exists, otherwise first pending
                                         const activeIndex = processingIndex !== -1 ? processingIndex : pendingIndex;
 
+                                        // Only mark as active if it's the actual active item AND analysis is running
                                         const isActualActive = isAnalysisRunning && item.id === worldModel[activeIndex]?.id;
                                         const isProcessed = item.status === 'vram';
-                                        const isProcessing = item.status === 'processing';
+                                        // Only show as processing if it's the FIRST processing item (prevents multiple blue)
+                                        // Check if this item is the first one with processing status in the full worldModel
+                                        const itemWorldIndex = worldModel.findIndex(x => x.id === item.id);
+                                        const isProcessing = item.status === 'processing' && processingIndex === itemWorldIndex;
 
                                         return (
                                             <div
@@ -453,6 +485,13 @@ export const Dashboard = () => {
                 </div>
 
             </div>
+
+            {/* Activity Log Modal */}
+            <ActivityLogModal 
+                isOpen={showActivityLog} 
+                onClose={() => setShowActivityLog(false)}
+                activityLog={activityLog}
+            />
         </div>
     );
 };

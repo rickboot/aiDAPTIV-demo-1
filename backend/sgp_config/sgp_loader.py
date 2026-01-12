@@ -121,11 +121,13 @@ CAUTIONS:
 {chr(10).join(f"- {c}" for c in guardrails.get('caution', []))}
 
 OUTPUT STYLE:
-- Be concise and specific
+- Write clear, analytical prose that demonstrates deep understanding
+- Be specific: use concrete examples, numbers, and quotes from the source material
 - Connect insights to memory pressure, DRAM/HBM constraints, local vs cloud economics
-- Use conservative, qualitative language unless you have explicit data
 - Apply analytical frameworks to identify patterns and second-order effects
 - Weight evidence by tier and cite sources when possible
+- Structure your analysis logically: identify key points, explain their significance, and connect them to strategic implications
+- Avoid generic statements - ground every insight in specific evidence from the context
 """
         return prompt
     
