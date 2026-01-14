@@ -18,7 +18,7 @@ from models.schemas import (
 )
 from services.memory_monitor import MemoryMonitor
 from services.performance_monitor import PerformanceMonitor
-from services.ollama_service import OllamaService, ANALYSIS_PHASES, ANALYSIS_PHASES_CES
+from services.ollama_service import OllamaService, ANALYSIS_PHASES
 from services.memory_tier_manager import MemoryTierManager
 from services.context_manager import ContextManager
 from services.session_manager import SessionManager
@@ -50,8 +50,8 @@ SCENARIOS = {
         memory_target_gb=19.0,
         crash_threshold_percent=76.0  # Crashes at 76% without aiDAPTIV+
     ),
-    "ces2026_standard": ScenarioConfig(
-        scenario="ces2026",
+    "mktg_intelligence_demo_standard": ScenarioConfig(
+        scenario="mktg_intelligence_demo",
         tier="standard",
         duration_seconds=10,  # Fast for dev (set to 120 for demo)
         total_documents=87,   # 2 dossier + 60 news + 20 social + 3 video + 3 images + 1 README (all local inputs included)
@@ -295,14 +295,14 @@ class SimulationOrchestrator:
                 elif current_doc['category'] == 'dossier':
                     yield {"type": "status", "message": "Loading Strategic Dossiers..."}
                 elif current_doc['category'] == 'news':
-                    yield {"type": "status", "message": "Ingesting CES News Feed..."}
+                    yield {"type": "status", "message": "Ingesting News Feed..."}
             elif prev_doc and current_doc['category'] != prev_doc['category']:
                 if current_doc['category'] == 'image':
                     yield {"type": "status", "message": "Loading image data for visual analysis..."}
                 elif current_doc['category'] == 'dossier':
                     yield {"type": "status", "message": "Loading Strategic Dossiers..."}
                 elif current_doc['category'] == 'news':
-                    yield {"type": "status", "message": "Ingesting CES News Feed..."}
+                    yield {"type": "status", "message": "Ingesting News Feed..."}
                 elif current_doc['category'] == 'social':
                     yield {"type": "status", "message": "Monitoring Social Channels..."}
                 elif current_doc['category'] == 'documentation' and 'transcript' in current_doc.get('name', '').lower():
@@ -860,121 +860,146 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
             
         return events
     
+    def _resolve_dataset_path(self, scenario_slug: str, category: Optional[str] = None) -> Path:
+        """
+        Resolve dataset path for a given scenario and category.
+        
+        Args:
+            scenario_slug: Scenario identifier (e.g., "mktg_intelligence_demo")
+            category: Optional category subdirectory (e.g., "dossier", "news", "social", "images", "video")
+        
+        Returns:
+            Path to the dataset directory
+        """
+        base_path = Path(__file__).parent.parent.parent / "data" / "realstatic"
+        
+        # Directory name mapping: map scenario slugs to actual directory names on disk
+        # This allows scenario-agnostic code while supporting existing directory structures
+        directory_mapping = {
+            "mktg_intelligence_demo": "ces2026",  # Map new scenario slug to existing directory name
+            "intel_demo": "ces2026",  # Backward compatibility: old name
+            "ces2026": "ces2026"  # Backward compatibility: old scenario ID still works
+        }
+        directory_name = directory_mapping.get(scenario_slug, scenario_slug)
+        
+        if category:
+            return base_path / directory_name / category
+        return base_path / directory_name
+    
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
         scenario = self.config.scenario
         tier = self.config.tier
         docs = []
         
-        if scenario == "ces2026":
-            ces_dir = Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026"
-            
-            # 1. README (Core Instructions) - Load FIRST
-            readme = ces_dir / "README.md"
-            if readme.exists():
-                content = readme.read_text(encoding='utf-8')
-                size_kb = readme.stat().st_size / 1024
-                docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
-            
-            # 2. Dossier files (Strategic Context) - Load SECOND (core context before live data)
-            dossier_dir = ces_dir / "dossier"
-            if dossier_dir.exists():
-                # Exclude Samsung/Silicon Motion (SSD controllers, not direct competitors) and Kioxia (NAND supplier/partner, not competitor)
-                excluded_dossiers = [
-                    "samsung_competitive_dossier.txt",  # SSD controller, not direct competitor
-                    "silicon_motion_competitive_dossier.txt",  # SSD controller, not direct competitor
-                    "kioxia_partnership_dossier.txt"  # NAND supplier/partner, not competitor (competes with Micron/Samsung in NAND, not with Phison)
-                ]
-                for file in sorted(dossier_dir.glob("*.txt")):
-                    if file.name in excluded_dossiers:
-                        logger.info(f"Skipping dossier (not competitor): {file.name}")
-                        continue
+        # Use scenario-agnostic path resolution
+        scenario_dir = self._resolve_dataset_path(scenario)
+        
+        # 1. README (Core Instructions) - Load FIRST
+        readme = scenario_dir / "README.md"
+        if readme.exists():
+            content = readme.read_text(encoding='utf-8')
+            size_kb = readme.stat().st_size / 1024
+            docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
+        
+        # 2. Dossier files (Strategic Context) - Load SECOND (core context before live data)
+        dossier_dir = self._resolve_dataset_path(scenario, "dossier")
+        if dossier_dir.exists():
+            # Exclude Samsung/Silicon Motion (SSD controllers, not direct competitors) and Kioxia (NAND supplier/partner, not competitor)
+            excluded_dossiers = [
+                "samsung_competitive_dossier.txt",  # SSD controller, not direct competitor
+                "silicon_motion_competitive_dossier.txt",  # SSD controller, not direct competitor
+                "kioxia_partnership_dossier.txt"  # NAND supplier/partner, not competitor (competes with Micron/Samsung in NAND, not with Phison)
+            ]
+            for file in sorted(dossier_dir.glob("*.txt")):
+                if file.name in excluded_dossiers:
+                    logger.info(f"Skipping dossier (not competitor): {file.name}")
+                    continue
+                content = file.read_text(encoding='utf-8')
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1), "content": content})
+        
+        # 3. LIVE REDDIT DATA - Load THIRD (after core context so analysis has strategic framework)
+        if app_config.DATA_SOURCE_MODE in ["live", "hybrid"]:
+            # Fetch live Reddit social signals AFTER core docs for better context
+            try:
+                from services.data_source import get_data_source
+                live_source = get_data_source("live")
+                live_social = live_source.fetch_social(count=20)
+                if live_social:
+                    logger.info(f"✅ Loaded {len(live_social)} live Reddit posts (after core context)")
+                    docs.extend(live_social)
+            except Exception as e:
+                logger.warning(f"Failed to fetch live Reddit signals: {e}")
+                if app_config.DATA_SOURCE_MODE == "hybrid":
+                    logger.info("Falling back to file-based social signals")
+        
+        # 4. News files - Load from disk (pre-generated offline)
+        news_dir = self._resolve_dataset_path(scenario, "news")
+        if news_dir.exists():
+            for file in sorted(news_dir.glob("*.txt")):
+                content = file.read_text(encoding='utf-8')
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1), "content": content})
+        
+        # 5. Social files - Load from disk (only if not in live mode)
+        social_dir = self._resolve_dataset_path(scenario, "social")
+        if social_dir.exists():
+            # In live mode, skip files (already have live Reddit). In hybrid/generated, include them.
+            if app_config.DATA_SOURCE_MODE != "live":
+                for file in sorted(social_dir.glob("*.txt")):
                     content = file.read_text(encoding='utf-8')
                     size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1), "content": content})
-            
-            # 3. LIVE REDDIT DATA - Load THIRD (after core context so analysis has strategic framework)
-            if app_config.DATA_SOURCE_MODE in ["live", "hybrid"]:
-                # Fetch live Reddit social signals AFTER core docs for better context
-                try:
-                    from services.data_source import get_data_source
-                    live_source = get_data_source("live")
-                    live_social = live_source.fetch_social(count=20)
-                    if live_social:
-                        logger.info(f"✅ Loaded {len(live_social)} live Reddit posts (after core context)")
-                        docs.extend(live_social)
-                except Exception as e:
-                    logger.warning(f"Failed to fetch live Reddit signals: {e}")
-                    if app_config.DATA_SOURCE_MODE == "hybrid":
-                        logger.info("Falling back to file-based social signals")
-            
-            # 4. News files - Load from disk (pre-generated offline)
-            news_dir = ces_dir / "news"
-            if news_dir.exists():
-                for file in sorted(news_dir.glob("*.txt")):
-                    content = file.read_text(encoding='utf-8')
+                    docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
+        
+        # 6. Image files - Load ALL images from all subdirectories
+        images_dir = self._resolve_dataset_path(scenario, "images")
+        if images_dir.exists():
+            # Load from all subdirectories
+            for subdir in ["infographics", "competitor_screenshots", "social_media"]:
+                subdir_path = images_dir / subdir
+                if subdir_path.exists():
+                    # Support multiple image formats
+                    for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
+                        for file in sorted(subdir_path.glob(ext)):
+                            size_kb = file.stat().st_size / 1024
+                            docs.append({
+                                "name": file.name,
+                                "category": "image",
+                                "size_kb": round(size_kb, 1),
+                                "path": str(file),
+                                "content": f"[Image: {file.name}]"
+                            })
+            # Also check root images directory for any loose images
+            for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
+                for file in sorted(images_dir.glob(ext)):
                     size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1), "content": content})
-            
-            # 5. Social files - Load from disk (only if not in live mode)
-            social_dir = ces_dir / "social"
-            if social_dir.exists():
-                # In live mode, skip files (already have live Reddit). In hybrid/generated, include them.
-                if app_config.DATA_SOURCE_MODE != "live":
-                    for file in sorted(social_dir.glob("*.txt")):
-                        content = file.read_text(encoding='utf-8')
-                        size_kb = file.stat().st_size / 1024
-                        docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
-            
-            # 6. Image files - Load ALL images from all subdirectories
-            images_dir = ces_dir / "images"
-            if images_dir.exists():
-                # Load from all subdirectories
-                for subdir in ["infographics", "competitor_screenshots", "social_media"]:
-                    subdir_path = images_dir / subdir
-                    if subdir_path.exists():
-                        # Support multiple image formats
-                        for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
-                            for file in sorted(subdir_path.glob(ext)):
-                                size_kb = file.stat().st_size / 1024
-                                docs.append({
-                                    "name": file.name,
-                                    "category": "image",
-                                    "size_kb": round(size_kb, 1),
-                                    "path": str(file),
-                                    "content": f"[Image: {file.name}]"
-                                })
-                # Also check root images directory for any loose images
-                for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
-                    for file in sorted(images_dir.glob(ext)):
-                        size_kb = file.stat().st_size / 1024
-                        docs.append({
-                            "name": file.name,
-                            "category": "image",
-                            "size_kb": round(size_kb, 1),
-                            "path": str(file),
-                            "content": f"[Image: {file.name}]"
-                        })
-            
-            # 7. Video transcripts (categorized as documentation since they're text file transcripts)
-            video_dir = ces_dir / "video"
-            if video_dir.exists():
-                for file in sorted(video_dir.glob("*.txt")):
-                    content = file.read_text(encoding='utf-8')
-                    size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
+                    docs.append({
+                        "name": file.name,
+                        "category": "image",
+                        "size_kb": round(size_kb, 1),
+                        "path": str(file),
+                        "content": f"[Image: {file.name}]"
+                    })
+        
+        # 7. Video transcripts (categorized as documentation since they're text file transcripts)
+        video_dir = self._resolve_dataset_path(scenario, "video")
+        if video_dir.exists():
+            for file in sorted(video_dir.glob("*.txt")):
+                content = file.read_text(encoding='utf-8')
+                size_kb = file.stat().st_size / 1024
+                docs.append({"name": file.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
         
         # Sort documents by priority for demo:
         # 1. README (core instructions)
         # 2. Dossier (core context/strategic framework)
         # 3. Live Reddit posts (after core context for better analysis)
-        # 4. NVIDIA CES 2026 keynote transcript (user priority)
+        # 4. Video transcripts (user priority)
         # 5. Images (multi-modal demo)
-        # 6. Video transcripts (documentation category)
-        # 7. Everything else
+        # 6. Everything else
         def get_priority(doc):
             # README gets highest priority
-            if doc.get('category') == 'documentation':
+            if doc.get('category') == 'documentation' and doc.get('name') == 'README.md':
                 return 0
             # Dossier gets second priority (core context)
             elif doc.get('category') == 'dossier':
@@ -982,15 +1007,13 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
             # Live Reddit posts get third priority (after core context)
             elif doc.get('source') == 'reddit':
                 return 2
-            # NVIDIA transcript gets fourth priority
-            elif doc.get('name') == 'nvidia_CES_2026_keynote_transcript.txt':
+            # Video transcripts get fourth priority
+            elif doc.get('category') == 'documentation' and 'transcript' in doc.get('name', '').lower():
                 return 3
             elif doc['category'] == 'image':
                 return 4
-            elif doc['category'] == 'documentation' and 'transcript' in doc.get('name', '').lower():
-                return 5
             else:
-                return 6
+                return 5
         
         docs.sort(key=get_priority)
         

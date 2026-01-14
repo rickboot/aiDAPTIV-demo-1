@@ -26,110 +26,55 @@ logger = logging.getLogger(__name__)
 
 ANALYSIS_PHASES = {
     "phase_1_review": {
-        "name": "Document Review",
-        "prompt": "First, review the list of competitors, research papers, and social signals provided. Briefly summarize what data sources you have available for analysis.",
-        "trigger_percent": 5,
+        "name": "Load Context",
+        "prompt": "Review the provided documents (dossiers, news, strategic context). Summarize the key information and data sources available for analysis.",
+        "trigger_percent": 30,  # Start after Core Data (Dossiers + README) is loaded
         "step_type": "plan",
         "tools": ["document_loader"],
-        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2"],
+        "related_doc_ids": [],
         "author": "@Orchestrator",
-        "system_prompt": "You are the Orchestrator. Your role is to survey available data and plan the analysis resources. maintain a high-level operational tone.",
+        "system_prompt": "You are the Orchestrator. Your role is to survey available data and plan the analysis resources. Maintain a high-level operational tone.",
         "model": "llama3.1:8b"
     },
     "phase_2_patterns": {
-        "name": "Pattern Detection",
-        "prompt": "Now analyze the competitor descriptions and UI changes. What patterns do you notice in their product interfaces and architectures? Be specific about which competitors show similar changes.",
-        "trigger_percent": 15,  # Trigger earlier to ensure model swap happens
+        "name": "Analyze Documents",
+        "prompt": "Analyze the documents provided (news articles, technical specifications, market reports). What patterns and trends do you notice? Be specific about key findings.",
+        "trigger_percent": 50,  # Start mid-way through document loading
         "step_type": "thought",
-        "related_doc_ids": ["Comp_UI_1", "Comp_UI_2", "Comp_Archive_X"],
+        "related_doc_ids": [],
         "author": "@AI_Analyst",
-        "system_prompt": "You are an Expert UI Analyst. Focus strictly on visual patterns, interface elements, and user experience changes. Be detailed and observational.",
+        "system_prompt": "You are an Expert Analyst. Focus on identifying patterns, trends, and key insights from the documents. Be detailed and observational.",
         "model": "qwen2.5:14b"
     },
     "phase_3_technical": {
-        "name": "Technical Cross-Reference",
-        "prompt": "Cross-reference the UI patterns you found with the technical research papers. Do any papers discuss agentic architectures, multi-agent systems, or autonomous workflows that align with what you're seeing in competitor products?",
-        "trigger_percent": 50,
+        "name": "Analyze Video/Images",
+        "prompt": "Analyze the video transcripts and images provided. What insights can you extract from visual content and video transcripts? Correlate these with the document findings.",
+        "trigger_percent": 85,  # Start after documents, as video/images begin
         "step_type": "action",
         "tools": ["rag_retriever"],
-        "related_doc_ids": ["arXiv_2401.12847"],
-        "author": "@Tech_Specialist",
-        "system_prompt": "You are a Chief Software Architect. Focus on backend infrastructure, agentic frameworks, and technical feasibility. Ignore marketing fluff.",
+        "related_doc_ids": [],
+        "author": "@Media_Analyst",
+        "system_prompt": "You are a Media Analyst. Extract key insights from video transcripts and images. Correlate visual and media content with document findings.",
         "model": "qwen2.5:14b"
     },
     "phase_4_social": {
-        "name": "Social Signal Validation",
-        "prompt": "Check the social media signals from CTOs and product leaders. Do their posts, blog articles, or conference talks corroborate your technical findings? What are they saying about AI agents and architecture shifts?",
-        "trigger_percent": 70,
+        "name": "Analyze User Feedback",
+        "prompt": "Check the social media signals (Reddit, Twitter, forums). What are users discussing? Does the social sentiment align with the findings from documents and media?",
+        "trigger_percent": 90,  # Parallel with video/image analysis
         "step_type": "observation",
-        "related_doc_ids": ["Social_Signal_5", "Social_Signal_8"],
-        "author": "@Market_Researcher",
-        "system_prompt": "You are a Market Researcher. Analyze social sentiment, industry buzz, and thought leader opinions. Look for validation of technical trends.",
+        "related_doc_ids": [],
+        "author": "@Social_Researcher",
+        "system_prompt": "You are a User Researcher. Analyze social sentiment and user discussions. Validate findings with real user feedback and pain points.",
         "model": "llama3.1:8b"
     },
     "phase_5_synthesis": {
-        "name": "Synthesis & Recommendations",
-        "prompt": "Synthesize your findings. How many competitors show strong evidence of architectural shifts toward agentic systems? What's the strength of evidence (UI changes + papers + social signals)? What should our product team do in response?",
-        "trigger_percent": 90,
+        "name": "Generate Summary",
+        "prompt": "Synthesize all findings from documents, media, and user feedback. What are the key insights? What recommendations can you provide based on the complete analysis?",
+        "trigger_percent": 95,  # Final synthesis at end
         "step_type": "thought",
         "tools": ["report_generator"],
         "author": "@Lead_Strategist",
-        "system_prompt": "You are the Lead Strategist. Synthesize findings from the analyst, architect, and researcher into a decisive executive recommendation. Be business-focused.",
-        "model": "llama3.1:8b"
-    }
-}
-
-ANALYSIS_PHASES_CES = {
-    "phase_1_review": {
-        "name": "Intelligence Briefing",
-        "prompt": "Review the provided competitive dossiers (Samsung, Silicon Motion, Kioxia) and CES news. Summarize the key competitive threats identified in these documents.",
-        "trigger_percent": 30,  # Start after Core Data (Dossiers + README) is loaded
-        "step_type": "plan",
-        "tools": ["dossier_analysis"],
-        "related_doc_ids": ["samsung_competitive_dossier", "silicon_motion_dossier"],
-        "author": "@Orchestrator",
-        "system_prompt": "You are the Intelligence Orchestrator. Summarize the strategic landscape based on the dossiers. Be concise and threat-focused.",
-        "model": "llama3.1:8b"
-    },
-    "phase_2_patterns": {
-        "name": "Threat Vector Analysis",
-        "prompt": "Analyze the technical specifications in the news (Intel, AMD, Samsung PM9E1). How do these hardware announcements impact the 'AI PC' memory bottleneck? Is there a pattern of on-device memory limitation?",
-        "trigger_percent": 50,  # Start mid-way through News loading
-        "step_type": "thought",
-        "related_doc_ids": ["intel_core_ultra", "amd_ryzen_ai"],
-        "author": "@Hardware_Analyst",
-        "system_prompt": "You are a Hardware Architect. Analyze the specs. Look for memory constraints that validate our swappable model thesis.",
-        "model": "qwen2.5:14b"
-    },
-    "phase_3_technical": {
-        "name": "Video Signal Correlation",
-        "prompt": "Correlate the video transcripts (NVIDIA Keynote, Linus Tech Tips) with the hardware trends. Are industry leaders (Jensen Huang, Linus) explicitly talking about the memory wall or model size constraints?",
-        "trigger_percent": 85,  # Start after News/Social, as Video begins
-        "step_type": "action",
-        "tools": ["video_transcript_analyzer"],
-        "related_doc_ids": ["nvidia_keynote", "linus_review"],
-        "author": "@Media_Analyst",
-        "system_prompt": "You are a Media Analyst. Extract key quotes and sentiment from the video transcripts that support the memory bottleneck thesis.",
-        "model": "qwen2.5:14b"
-    },
-    "phase_4_social": {
-        "name": "User Sentiment Validation",
-        "prompt": "Check the Reddit and Twitter discussions. Are real users complaining about VRAM limitations? Does the social sentiment align with the hardware constraints we identified?",
-        "trigger_percent": 90,  # Parallel with Video analysis
-        "step_type": "observation",
-        "related_doc_ids": ["reddit_localllama", "karpathy_tweet"],
-        "author": "@Social_Researcher",
-        "system_prompt": "You are a User Researcher. Validate technical findings with real user pain points from social media.",
-        "model": "llama3.1:8b"
-    },
-    "phase_5_synthesis": {
-        "name": "Strategic Recommendation",
-        "prompt": "Synthesize all findings (Dossiers + Hardware Specs + Video Signals + User Pain). Does the evidence support an accelerated roadmap for Phison aidAPTIV+? Provide a decisive recommendation.",
-        "trigger_percent": 95,  # Final synthesis at end
-        "step_type": "thought",
-        "tools": ["strategy_engine"],
-        "author": "@Lead_Strategist",
-        "system_prompt": "You are the Chief Strategy Officer. Synthesize all intelligence into a final go/no-go recommendation for the product roadmap.",
+        "system_prompt": "You are the Lead Strategist. Synthesize findings from all sources into a comprehensive summary with actionable recommendations.",
         "model": "llama3.1:8b"
     }
 }
@@ -222,8 +167,8 @@ class OllamaService:
         Load all documents for a scenario/tier.
         
         Args:
-            scenario: Scenario ID (e.g., "pmm", "ces2026")
-            tier: Tier level ("lite", "large", or "standard" for ces2026)
+            scenario: Scenario ID (e.g., "pmm", "mktg_intelligence_demo")
+            tier: Tier level ("lite", "large", or "standard")
         
         Returns:
             List of document dicts with 'category', 'name', 'content'
@@ -234,10 +179,18 @@ class OllamaService:
         
         documents = []
         
-        # CES 2026 has different directory structure (no tier subdirectory)
-        if scenario == "ces2026":
-            base_path = Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026"
-            logger.info(f"Loading CES 2026 documents from: {base_path}")
+        # Directory name mapping: map scenario slugs to actual directory names on disk
+        directory_mapping = {
+            "mktg_intelligence_demo": "ces2026",  # Map new scenario slug to existing directory name
+            "intel_demo": "ces2026",  # Backward compatibility: old name
+            "ces2026": "ces2026"  # Backward compatibility
+        }
+        directory_name = directory_mapping.get(scenario, scenario)
+        
+        # Check if scenario uses realstatic structure (no tier subdirectory)
+        base_path = Path(__file__).parent.parent.parent / "data" / "realstatic" / directory_name
+        if base_path.exists():
+            logger.info(f"Loading documents from: {base_path}")
             
             # Load dossier files (strategic context)
             dossier_path = base_path / "dossier"
@@ -479,8 +432,7 @@ class OllamaService:
         """
         Backward compatible wrapper for generate_step using predefined phases.
         """
-        phases = ANALYSIS_PHASES_CES if scenario == "ces2026" else ANALYSIS_PHASES
-        phase = phases.get(phase_key)
+        phase = ANALYSIS_PHASES.get(phase_key)
         if not phase:
             logger.error(f"Unknown phase: {phase_key} for scenario {scenario}")
             return
@@ -570,7 +522,7 @@ TASK:
                 else:
                     # Fallback to demo image if no paths provided
                     img_candidates = [
-                        Path(__file__).parent.parent.parent / "documents" / "ces2026" / "images" / "infographics" / "samsung_ssd_roadmap_1767950527033.png",
+                        Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026" / "images" / "infographics" / "samsung_ssd_roadmap_1767950527033.png",
                         Path(__file__).parent.parent.parent / "documents" / "pmm" / "lite" / "competitors" / "competitor_ui.png"
                     ]
                     for candidate in img_candidates:

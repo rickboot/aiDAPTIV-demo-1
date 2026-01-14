@@ -335,8 +335,9 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             let scenario = 'pmm';
             let tier = 'lite';
 
-            if (activeScenario.id === 'ces2026') {
-                scenario = 'ces2026';
+            if (activeScenario.id === 'mktg_intelligence_demo' || activeScenario.id === 'intel_demo' || activeScenario.id === 'ces2026') {
+                // Support new and old scenario IDs for backward compatibility
+                scenario = 'mktg_intelligence_demo';
                 tier = 'standard';
             } else if (activeScenario.id.includes('large')) {
                 tier = 'large';

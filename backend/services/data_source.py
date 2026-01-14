@@ -384,10 +384,17 @@ u/hardware_guru: 'This is why SSD offloading is becoming popular.'"""
         
         return signals
     
-    def fetch_dossiers(self) -> List[Dict]:
+    def fetch_dossiers(self, scenario_slug: str = "mktg_intelligence_demo") -> List[Dict]:
         """Load existing dossiers (not generated)."""
         # Dossiers are strategic context - keep them real/manual
-        dossier_path = Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026" / "dossier"
+        # Directory name mapping: map scenario slugs to actual directory names on disk
+        directory_mapping = {
+            "mktg_intelligence_demo": "ces2026",  # Map new scenario slug to existing directory name
+            "intel_demo": "ces2026",  # Backward compatibility: old name
+            "ces2026": "ces2026"  # Backward compatibility
+        }
+        directory_name = directory_mapping.get(scenario_slug, scenario_slug)
+        dossier_path = Path(__file__).parent.parent.parent / "data" / "realstatic" / directory_name / "dossier"
         dossiers = []
         
         if dossier_path.exists():

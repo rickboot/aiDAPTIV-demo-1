@@ -7,9 +7,9 @@ const MARKETING_INTEL_INITIAL_FEED: FeedItem[] = [
 
 export const SCENARIOS: Scenario[] = [
     {
-        id: 'ces2026',
+        id: 'mktg_intelligence_demo',
         title: 'Marketing Intelligence',
-        subtitle: '21 Intelligence Sources - Competitive Dossiers',
+        subtitle: 'Competitive Intelligence Analysis',
         description: 'Strategic Intelligence for aiDAPTIV+',
         initialFeed: MARKETING_INTEL_INITIAL_FEED
     }

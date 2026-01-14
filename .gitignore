@@ -12,6 +12,35 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ChromaDB
+backend/chroma_db/
+*.sqlite3
+*.bin
+
+# Data (keep structure, ignore generated content)
+data/generated/
+data/dummy/
+backend/generated/
+
+# Environment variables
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +51,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# OS
+Thumbs.db

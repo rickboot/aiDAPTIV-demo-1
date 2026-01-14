@@ -80,7 +80,7 @@ async def list_scenarios():
     """List available scenarios."""
     scenarios = [
         ScenarioListItem(
-            id="ces2026",
+            id="mktg_intelligence_demo",
             name="Marketing Intelligence",
             tiers=["standard"]
         )

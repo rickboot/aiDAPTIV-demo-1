@@ -54,11 +54,11 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
                             <div>
                                 <div className="font-semibold text-blue-200 mb-1">5-Phase Agentic Analysis</div>
                                 <div className="text-blue-300/80 space-y-1">
-                                    <div><strong>Phase 1:</strong> Document Review - Catalogs available data sources</div>
-                                    <div><strong>Phase 2:</strong> Pattern Detection - Identifies UI/architecture changes</div>
-                                    <div><strong>Phase 3:</strong> Technical Cross-Reference - Links patterns to research papers</div>
-                                    <div><strong>Phase 4:</strong> Social Signal Validation - Corroborates with industry signals</div>
-                                    <div><strong>Phase 5:</strong> Synthesis - Generates strategic recommendations</div>
+                                    <div><strong>Phase 1:</strong> Load Context - Reviews available documents and summarizes data sources</div>
+                                    <div><strong>Phase 2:</strong> Analyze Documents - Identifies patterns and trends in news and reports</div>
+                                    <div><strong>Phase 3:</strong> Analyze Video/Images - Extracts insights from visual content and transcripts</div>
+                                    <div><strong>Phase 4:</strong> Analyze User Feedback - Validates findings with social media signals</div>
+                                    <div><strong>Phase 5:</strong> Generate Summary - Synthesizes all findings into actionable recommendations</div>
                                 </div>
                             </div>
                             <div>
@@ -97,7 +97,7 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
                             <div className="text-sm">
                                 <strong>Processing Flow:</strong>
                                 <ol className="list-decimal list-inside space-y-1 mt-2 text-text-secondary">
-                                    <li>Documents loaded from <code className="text-xs bg-black/30 px-1 rounded">/data/realstatic/ces2026/</code> or <code className="text-xs bg-black/30 px-1 rounded">/data/dummy/pmm/[tier]/</code></li>
+                                    <li>Documents loaded from <code className="text-xs bg-black/30 px-1 rounded">/data/realstatic/[scenario]/</code> or <code className="text-xs bg-black/30 px-1 rounded">/data/dummy/pmm/[tier]/</code></li>
                                     <li>Content combined into unified context string (~22K chars for lite, ~180K for large)</li>
                                     <li>Context sent to LLM with phase-specific prompts</li>
                                     <li>LLM streams reasoning back in real-time</li>

@@ -28,7 +28,15 @@ def generate_corpus(news_count: int = None, social_count: int = None):
     data_source = GeneratedDataSource(seed=42)  # Deterministic
     
     # Setup directories
-    base_dir = Path(__file__).parent.parent / "data" / "realstatic" / "ces2026"
+    # Default to mktg_intelligence_demo scenario (maps to ces2026 directory for backward compatibility)
+    scenario_slug = "mktg_intelligence_demo"
+    directory_mapping = {
+        "mktg_intelligence_demo": "ces2026",  # Map scenario slug to directory name
+        "intel_demo": "ces2026",  # Backward compatibility: old name
+        "ces2026": "ces2026"  # Backward compatibility
+    }
+    directory_name = directory_mapping.get(scenario_slug, scenario_slug)
+    base_dir = Path(__file__).parent.parent / "data" / "realstatic" / directory_name
     news_dir = base_dir / "news"
     social_dir = base_dir / "social"
     
