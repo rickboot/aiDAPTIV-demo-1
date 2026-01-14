@@ -1,0 +1,19 @@
+Twitter Thread - @karpathy
+
+Date: January 27, 2026
+Likes: 939
+Retweets: 255
+Replies: 126
+
+THREAD:
+1/3 The memory bottleneck in AI is real. Claude-3 requires 60GB but most hardware only provides 32GB. We need better solutions.
+
+2/3 KV cache grows quadratically with context length. A 256k context window needs 30GB just for cache.
+
+3/3 This is why we're seeing more interest in offloading strategies - SSD, system RAM, anything to break the VRAM wall.
+
+ENGAGEMENT:
+Thread received 1035 likes, 510 retweets, and 301 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. karpathy has 177680 followers. High engagement suggests broad awareness of the issue.

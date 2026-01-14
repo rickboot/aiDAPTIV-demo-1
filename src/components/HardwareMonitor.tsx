@@ -80,7 +80,7 @@ export const HardwareMonitor = () => {
     }, [isDragging, position]); // Re-bind with latest position if needed, though ref implies we don't need pos in dep
 
 
-    const { impactSummary, worldModel, isAnalysisRunning } = useScenario();
+    const { impactSummary, worldModel, isAnalysisRunning, totalDocuments } = useScenario();
     const {
         documents_processed: impactProcessed = 0,
         total_documents: impactTotal = 0,
@@ -378,7 +378,7 @@ export const HardwareMonitor = () => {
                                     <div className="flex justify-between text-xs mb-1">
                                         <span className="text-text-secondary">Progress</span>
                                         <span className="text-text-primary">
-                                            {crashDetails?.processed_documents || 0} / {crashDetails?.total_documents || (tier === 'large' ? 268 : 18)} Docs
+                                            {crashDetails?.processed_documents || 0} / {crashDetails?.total_documents || totalDocuments || worldModel.length} Docs
                                         </span>
                                     </div>
                                     <div className="h-1.5 w-full bg-dashboard-bg rounded-full overflow-hidden">

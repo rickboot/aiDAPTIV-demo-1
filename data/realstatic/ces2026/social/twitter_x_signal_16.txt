@@ -1,0 +1,19 @@
+Twitter Thread - @karpathy
+
+Date: January 26, 2026
+Likes: 1534
+Retweets: 753
+Replies: 494
+
+THREAD:
+1/3 The memory bottleneck in AI is real. GPT-4 requires 40GB but most hardware only provides 32GB. We need better solutions.
+
+2/3 KV cache grows quadratically with context length. A 128k context window needs 30GB just for cache.
+
+3/3 This is why we're seeing more interest in offloading strategies - SSD, system RAM, anything to break the VRAM wall.
+
+ENGAGEMENT:
+Thread received 946 likes, 666 retweets, and 199 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. karpathy has 831295 followers. High engagement suggests broad awareness of the issue.

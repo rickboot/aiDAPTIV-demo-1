@@ -1,0 +1,15 @@
+Twitter Thread - @AndrewYNg
+
+Date: January 14, 2026
+Likes: 3812
+Retweets: 841
+Replies: 134
+
+THREAD:
+The AI hardware stack is fundamentally memory-constrained. 60% of inference failures are OOM errors. We need architectural changes, not just bigger GPUs.
+
+ENGAGEMENT:
+Thread received 3253 likes, 784 retweets, and 397 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. AndrewYNg has 936912 followers. High engagement suggests broad awareness of the issue.

@@ -1,13 +1,13 @@
 """
 Script to generate sample documents for aiDAPTIV+ demo.
-Run this to populate the documents/pmm directory.
+Run this to populate the data/dummy/pmm directory.
 """
 
 import os
 from pathlib import Path
 
 # Base directory
-BASE_DIR = Path(__file__).parent.parent / "documents" / "pmm"
+BASE_DIR = Path(__file__).parent.parent / "data" / "dummy" / "pmm"
 
 # ═══════════════════════════════════════════════════════════════
 # PAPER TEMPLATES

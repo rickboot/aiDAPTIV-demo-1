@@ -42,6 +42,7 @@ interface ScenarioContextType {
     upgradeMessage: string;
     elapsedSeconds: number;
     impactSummary: ImpactSummaryData | null;
+    totalDocuments: number; // Dynamic total from backend
     backendConnected: boolean;
     backendError: string | null;
     ollamaConnected: boolean;
@@ -89,6 +90,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     const [currentActivity, setCurrentActivity] = useState<string>('Idle');
     const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([]);
     const [impactSummary, setImpactSummary] = useState<ImpactSummaryData | null>(null);
+    const [totalDocuments, setTotalDocuments] = useState<number>(0); // Dynamic total from backend init event
     const [backendConnected, setBackendConnected] = useState(true);
     const [backendError, setBackendError] = useState<string | null>(null);
     const [ollamaConnected, setOllamaConnected] = useState(true);
@@ -111,6 +113,10 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
     // WebSocket ref
     const wsRef = useRef<WebSocket | null>(null);
+    // Track if analysis has started (more reliable than checking state in closure)
+    const analysisStartedRef = useRef<boolean>(false);
+    // Track if first document has been processed (to ignore stale Ollama values from previous runs)
+    const firstDocumentProcessedRef = useRef<boolean>(false);
 
     // ACTIONS
     const setActiveScenario = (id: string) => {
@@ -141,8 +147,20 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
         setIsAnalysisRunning(false);
         setCrashDetails(null);
-        setSystemState(prev => ({ ...prev, vramUsage: 0, ramUsage: 16.0, ssdUsage: 0 }));
+        analysisStartedRef.current = false; // Reset analysis started flag
+        firstDocumentProcessedRef.current = false; // Reset first document processed flag
+        // Reset all memory-related values including context and KV cache
+        setSystemState(prev => ({ 
+            ...prev, 
+            vramUsage: 0, 
+            ramUsage: 16.0, 
+            ssdUsage: 0,
+            context_tokens: 0,
+            kv_cache_gb: 0,
+            model_weights_gb: 0
+        }));
         setWorldModel([]); // Clear to repopulate dynamically
+        setTotalDocuments(0); // Reset total documents count
         setFeed(activeScenario.initialFeed);
         setMetrics(INITIAL_METRICS);
         setPerformance(INITIAL_PERFORMANCE);
@@ -160,16 +178,11 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const toggleAidaptiv = () => {
-        console.log('toggleAidaptiv called, isAnalysisRunning:', isAnalysisRunning);
-        console.log('Current isAidaptivEnabled:', systemState.isAidaptivEnabled);
         if (!isAnalysisRunning) {
-            setSystemState(prev => {
-                const newState = { ...prev, isAidaptivEnabled: !prev.isAidaptivEnabled };
-                console.log('Setting new isAidaptivEnabled:', newState.isAidaptivEnabled);
-                return newState;
-            });
-        } else {
-            console.log('Toggle blocked - analysis is running');
+            setSystemState(prev => ({
+                ...prev,
+                isAidaptivEnabled: !prev.isAidaptivEnabled
+            }));
         }
     };
 
@@ -180,7 +193,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 const response = await fetch('http://localhost:8000/api/system/info');
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Detected System:', data);
                     setSystemState(prev => ({
                         ...prev,
                         totalMemory: data.memory_gb,
@@ -203,7 +215,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 const response = await fetch('http://localhost:8000/api/memory/current');
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Baseline Memory:', data);
                     setSystemState(prev => ({
                         ...prev,
                         vramUsage: data.unified_gb,
@@ -234,7 +245,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 const response = await fetch('http://localhost:8000/api/ollama/status');
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Ollama Status:', data);
                     if (data.enabled && !data.available) {
                         setOllamaConnected(false);
                         setOllamaError(data.message || 'Ollama is not available');
@@ -263,7 +273,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 const response = await fetch(`http://localhost:8000/api/capabilities?aidaptiv_enabled=${systemState.isAidaptivEnabled}`);
                 if (response.ok) {
                     const data = await response.json();
-                    console.log('Capabilities:', data);
                     setCurrentTier(data.tier);
                     setEnabledFeatures(data.enabled_features || []);
                     setUpgradeMessage(data.upgrade_message || '');
@@ -302,19 +311,25 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         setCurrentActivity('Initializing analysis...');
         setAnalysisStartTime(Date.now());
         setElapsedSeconds(0);
+        analysisStartedRef.current = false; // Reset ref - will be set to true when init event arrives
+        firstDocumentProcessedRef.current = false; // Reset - will be set to true when first document is processed
+        
+        // Reset context and KV cache to 0 before starting (clear any stale values from previous Ollama runs)
+        setSystemState(prev => ({
+            ...prev,
+            context_tokens: 0,
+            kv_cache_gb: 0
+        }));
 
         if (activeScenario.id.includes('large')) {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate connection delay for large
         }
 
         // Connect to WebSocket
-        console.log('Connecting to WebSocket:', WS_URL);
         const ws = new WebSocket(WS_URL);
         wsRef.current = ws;
 
         ws.onopen = () => {
-            console.log('WebSocket connected');
-
             // Send simulation parameters
             // Determine scenario and tier from activeScenario.id
             let scenario = 'pmm';
@@ -333,14 +348,11 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 aidaptiv_enabled: systemState.isAidaptivEnabled
             };
 
-            console.log('Sending simulation params:', params);
             ws.send(JSON.stringify(params));
         };
 
         ws.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            console.log('Received event:', message.type, message.data);
-
             handleWebSocketMessage(message);
         };
 
@@ -349,7 +361,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         };
 
         ws.onclose = () => {
-            console.log('WebSocket disconnected');
             setIsAnalysisRunning(false);
         };
 
@@ -370,13 +381,21 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
         switch (message.type) {
             case 'init':
                 // Initialize world model with placeholders - detect type from filename
+                analysisStartedRef.current = true; // Mark that analysis has started
                 if (message.data.documents) {
+                    // Store total document count from backend (dynamic, not hardcoded)
+                    const totalFromBackend = message.data.total || message.data.documents.length;
+                    
                     const initialModel = message.data.documents.map((doc: any, index: number) => {
-                        // Detect type from filename
+                        // Detect type from category (preferred) or filename (fallback)
                         let type = 'text_document';
-                        if (doc.name.endsWith('.png') || doc.name.endsWith('.jpg') || doc.name.endsWith('.jpeg')) {
+                        if (doc.category === 'image' || doc.name.endsWith('.png') || doc.name.endsWith('.jpg') || doc.name.endsWith('.jpeg')) {
                             type = 'screenshot';
-                        } else if (doc.name.includes('video') || doc.name.includes('transcript')) {
+                        } else if (doc.category === 'documentation' && (doc.name.includes('transcript') || doc.name.includes('video'))) {
+                            // Video transcripts are documentation, not video
+                            type = 'text_document';
+                        } else if (doc.category === 'video') {
+                            // Only real video files (not transcripts) should be video_transcript
                             type = 'video_transcript';
                         }
 
@@ -384,12 +403,15 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             id: `doc-${index}`,
                             type: type,
                             title: doc.name,
+                            category: doc.category, // Store category for later use
                             memorySize: doc.size_kb || 50, // Show actual size from backend immediately
                             lastAccessed: Date.now(),
                             status: 'pending'
                         };
                     });
                     setWorldModel(initialModel);
+                    // Store total documents count from backend for use throughout the app
+                    setTotalDocuments(totalFromBackend);
                 }
                 break;
 
@@ -423,20 +445,38 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
             case 'memory':
                 // Update system state with memory data
-                setSystemState(prev => ({
-                    ...prev,
-                    vramUsage: message.data.unified_gb,
-                    totalMemory: message.data.unified_total_gb || 16,
-                    ramUsage: message.data.unified_gb, // Deprecated field, keep in sync or ignore
-                    ssdUsage: message.data.virtual_gb,
-                    context_tokens: message.data.context_tokens || 0,
-                    kv_cache_gb: message.data.kv_cache_gb || 0,
-                    model_weights_gb: message.data.model_weights_gb || 0,
-                    loaded_model: message.data.loaded_model || prev.loaded_model
-                }));
+                // Only update context and KV cache after first document is processed (to ignore stale Ollama values)
+                setSystemState(prev => {
+                    const canShowContext = firstDocumentProcessedRef.current; // Only show after first doc processed
+                    
+                    return {
+                        ...prev,
+                        vramUsage: message.data.unified_gb,
+                        totalMemory: message.data.unified_total_gb || 16,
+                        ramUsage: message.data.unified_gb, // Deprecated field, keep in sync or ignore
+                        ssdUsage: message.data.virtual_gb,
+                        // Only update context/KV cache after first document processed (ignores stale Ollama values from previous runs)
+                        // Model weights can always be shown (it's just the model size, not analysis-specific)
+                        context_tokens: canShowContext ? (message.data.context_tokens || 0) : 0,
+                        kv_cache_gb: canShowContext ? (message.data.kv_cache_gb || 0) : 0,
+                        model_weights_gb: message.data.model_weights_gb || prev.model_weights_gb || 0, // Always show model size if available
+                        loaded_model: message.data.loaded_model || prev.loaded_model
+                    };
+                });
                 break;
 
             case 'document':
+                // Mark that first document has been processed (ignore stale Ollama values before this)
+                // Only enable context/KV cache display after first document AND a small delay to ensure cache clear completed
+                if (!firstDocumentProcessedRef.current) {
+                    firstDocumentProcessedRef.current = true;
+                    // Reset context/KV cache to 0 when first document arrives (cache should be cleared by now)
+                    setSystemState(prev => ({
+                        ...prev,
+                        context_tokens: 0,
+                        kv_cache_gb: 0
+                    }));
+                }
                 // Update world model - mark document as processed
                 setCurrentActivity(`Processing: ${message.data.name}`);
                 // Add to activity log
@@ -455,11 +495,11 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                             case 'competitor': return 'screenshot';
                             case 'paper': return 'pdf_embedding';
                             case 'image': return 'screenshot'; // Images show as screenshots
-                            case 'video': return 'video_transcript';
+                            case 'video': return 'video_transcript'; // Only for real video files (not transcripts)
                             case 'dossier':
                             case 'news':
                             case 'social':
-                            case 'documentation':
+                            case 'documentation': // Video transcripts are now documentation category
                                 return 'text_document';
                             default: return 'text_document';
                         }
@@ -493,12 +533,10 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
                 break;
 
             case 'document_status':
-                console.log('Received document_status:', message.data);
                 setWorldModel(prev => {
                     const newModel = [...prev];
                     const { index, status } = message.data;
                     if (newModel[index]) {
-                        console.log(`Updating doc ${index} status to ${status}`);
                         newModel[index] = {
                             ...newModel[index],
                             status: status
@@ -547,7 +585,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             case 'complete':
                 // Analysis complete - preserve final elapsed time
                 setCurrentActivity('Analysis complete');
-                console.log('Simulation complete:', message.data);
 
                 // Calculate final elapsed time before stopping
                 if (analysisStartTime) {
@@ -565,7 +602,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
             case 'crash':
                 const crashEvent = message as CrashEvent;
-                console.log('Simulation crashed:', crashEvent.data);
                 setIsCrashed(true);
                 setCrashDetails(crashEvent.data);
                 setIsAnalysisRunning(false);
@@ -581,7 +617,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
             case 'rag_storage':
                 const ragStorageEvent = message as RAGStorageEvent;
-                console.log('RAG Storage:', ragStorageEvent.data);
                 // Add to feed as a development activity
                 setFeed(prev => [{
                     id: `rag_storage_${Date.now()}`,
@@ -603,7 +638,6 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
 
             case 'rag_retrieval':
                 const ragRetrievalEvent = message as RAGRetrievalEvent;
-                console.log('RAG Retrieval:', ragRetrievalEvent.data);
                 // Add to feed as a development activity
                 const retrievalContent = ragRetrievalEvent.data.documents_retrieved > 0
                     ? `🔍 Retrieved ${ragRetrievalEvent.data.documents_retrieved} documents (${ragRetrievalEvent.data.tokens_retrieved}/${ragRetrievalEvent.data.tokens_limit} tokens) from ${ragRetrievalEvent.data.candidates_found} candidates. Excluded ${ragRetrievalEvent.data.excluded_count} duplicates.`
@@ -668,6 +702,7 @@ export const ScenarioProvider = ({ children }: { children: ReactNode }) => {
             upgradeMessage,
             elapsedSeconds,
             impactSummary,
+            totalDocuments,
             backendConnected,
             backendError,
             ollamaConnected,

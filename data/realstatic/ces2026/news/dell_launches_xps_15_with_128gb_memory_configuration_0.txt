@@ -1,0 +1,19 @@
+Dell Product Announcement - January 10, 2026
+
+Dell today announced the XPS 15, featuring up to 128GB of DDR5 memory, targeting AI PC.
+
+PRODUCT SPECIFICATIONS:
+- Model: XPS 15
+- Memory Options: 16GB/32GB/64GB
+- Processor: Intel Core Ultra
+- Price: $2071
+- Availability: Immediate
+
+MARKET POSITIONING:
+Dell positions the XPS 15 as a premium AI PC solution, emphasizing memory capacity as a key differentiator.
+
+MEMORY CONSTRAINTS:
+Soldered memory limits upgradeability
+
+STRATEGIC IMPLICATIONS:
+Supply chain pressures highlight need for alternative memory architectures

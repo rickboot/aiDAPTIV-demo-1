@@ -1,0 +1,17 @@
+Reddit Discussion - r/artificial
+
+User: u/user_6590
+Date: January 20, 2026
+Upvotes: 474
+Comments: 68
+
+POST:
+Just hit OOM trying to run GPT-4 on my A100. Only have 24GB VRAM. Anyone else struggling with this?
+
+TOP COMMENTS:
+u/dev_help: 'Same issue here. 24GB isn't enough for GPT-4.'
+u/ai_researcher: 'KV cache is the problem. You need 80GB+ for 1024k context.'
+u/hardware_guru: 'This is why SSD offloading is becoming popular.'
+
+ANALYSIS:
+Developer community expressing frustration with VRAM limitations. GPT-4 requires 80GB+ but most GPUs only have 24GB. Strong signal for memory offloading solutions.

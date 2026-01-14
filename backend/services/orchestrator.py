@@ -54,7 +54,7 @@ SCENARIOS = {
         scenario="ces2026",
         tier="standard",
         duration_seconds=10,  # Fast for dev (set to 120 for demo)
-        total_documents=21,   # 5 dossier + 10 news + 2 social + 3 video + 1 README
+        total_documents=87,   # 2 dossier + 60 news + 20 social + 3 video + 3 images + 1 README (all local inputs included)
         memory_target_gb=14.0,  # Higher target due to video transcripts + dossiers
         crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
@@ -89,7 +89,7 @@ class SimulationOrchestrator:
         self.memory_monitor = MemoryMonitor(self.config, aidaptiv_enabled)
         
         # Base directory for documents
-        self.doc_dir = Path(__file__).parent.parent.parent / "documents" / scenario
+        self.doc_dir = Path(__file__).parent.parent.parent / "data" / "realstatic" / scenario
         
         # Metrics tracking
         self.metrics = {
@@ -163,7 +163,7 @@ class SimulationOrchestrator:
                 error_message = f"Ollama is required but not available: {error_msg}"
                 logger.error(error_message)
                 logger.error("Start Ollama with: ollama serve")
-                logger.error("Then ensure models are available: ollama pull llama3.1:8b && ollama pull llava:13b")
+                logger.error("Then ensure models are available: ollama pull llama3.1:8b && ollama pull llava:13b && ollama pull qwen2.5:14b")
                 raise RuntimeError(error_message)
             else:
                 logger.info(f"Ollama enabled with model: {app_config.OLLAMA_MODEL}")
@@ -231,12 +231,42 @@ class SimulationOrchestrator:
             # Optionally yield a crash event or error status here
             return # Stop simulation if initialization fails
 
-        total_docs = self.config.total_documents
+        # Clear Ollama KV cache and context before starting analysis
+        # Do this BEFORE sending init event so cache is cleared before memory events start flowing
+        if self.use_ollama and self.ollama_service:
+            try:
+                logger.info("Clearing Ollama KV cache and context before analysis...")
+                cleared = self.ollama_service.clear_model_cache()
+                if cleared:
+                    logger.info("Ollama cache cleared successfully - waiting for model to unload...")
+                    # Give Ollama a moment to unload the model and clear cache
+                    await asyncio.sleep(0.5)
+                else:
+                    logger.warning("Ollama cache clear returned False")
+            except Exception as e:
+                logger.warning(f"Failed to clear Ollama cache (non-fatal): {e}")
+        
+        # Reset memory monitor's context tracking to ensure clean state
+        # This clears any context_tokens that were set during document loading
+        if hasattr(self, 'memory_monitor'):
+            self.memory_monitor.set_context_size(0)
+            logger.info("Reset memory monitor context size to 0 (cleared stale values from document loading)")
+        
+        # Reset context_manager's token count to ensure clean state
+        # This clears any tokens that were loaded from previous session state
+        if hasattr(self, 'context_manager'):
+            self.context_manager.total_tokens = 0
+            self.context_manager.active_documents = []
+            logger.info("Reset context_manager to clean state (cleared tokens from previous session)")
+        
+        # Get document list first to get actual count
+        documents = self._get_document_list()
+        actual_total_docs = len(documents)
+        
+        # Use actual count if different from config (config is approximate)
+        total_docs = actual_total_docs if actual_total_docs > 0 else self.config.total_documents
         duration = self.config.duration_seconds
         interval = duration / total_docs  # Time per document
-        
-        # Get document list
-        documents = self._get_document_list()
         
         # Send initialization event with all documents
         yield {
@@ -275,7 +305,7 @@ class SimulationOrchestrator:
                     yield {"type": "status", "message": "Ingesting CES News Feed..."}
                 elif current_doc['category'] == 'social':
                     yield {"type": "status", "message": "Monitoring Social Channels..."}
-                elif current_doc['category'] == 'video':
+                elif current_doc['category'] == 'documentation' and 'transcript' in current_doc.get('name', '').lower():
                     yield {"type": "status", "message": "Processing Video Transcripts..."}
             
             # Calculate current progress
@@ -333,7 +363,7 @@ class SimulationOrchestrator:
                 is_batch_complete = True
             elif current_doc['category'] == 'image':  # Process images individually for llava
                 is_batch_complete = True
-            elif current_doc['category'] == 'video':  # Process video individually for vision
+            elif current_doc['category'] == 'documentation' and 'transcript' in current_doc.get('name', '').lower():  # Process video transcripts individually
                 is_batch_complete = True
             elif docs_in_current_batch >= 4: # Granular processing to prevent signal loss
                 is_batch_complete = True
@@ -380,12 +410,8 @@ class SimulationOrchestrator:
         if category == 'image':
             # Pro: llava:34b, Standard: llava:13b
             return tier_models.get('image_analysis', 'llava:13b')
-        elif category == 'video':
-            # If it's a transcript (.txt), use text model. If it's a real video/frames, use vision.
-            if doc and doc.get('name', '').lower().endswith('.txt'):
-                return tier_models.get('text_analysis', 'llama3.1:8b')
-            # Fallback to vision model for video category if not clearly a transcript
-            return tier_models.get('video_analysis', tier_models.get('image_analysis', 'llava:13b'))
+        # Video transcripts are now categorized as 'documentation', handled above
+        # Real video files would use vision model, but we only have text transcripts
         else:
             # Default text model for everything else
             return tier_models.get('text_analysis', 'llama3.1:8b')
@@ -430,7 +456,40 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "thought",
-                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Analyze these competitor dossiers.\nQUESTION: What specific technical weaknesses do Samsung/Kioxia have that leave the door open for aiDAPTIV+?\nOUTPUT: The 'Attack Vector' we can use against them.",
+                    "prompt": f"""DATA SOURCE: {current_doc.get('name', 'Unknown')}
+
+TASK: Analyze these competitor dossiers and identify specific technical weaknesses and attack vectors.
+
+NOTE: Kioxia is a NAND supplier and strategic partner (not a competitor). Focus analysis on actual competitors only.
+
+OUTPUT FORMAT (you MUST fill in all sections with specific details):
+
+## Analysis of Competitor Dossiers
+
+[Brief 1-2 sentence summary of the overall competitive landscape]
+
+## Competitor Weaknesses:
+
+- [Specific technical weakness #1 with details from dossier]
+- [Specific technical weakness #2 with details from dossier]
+
+## Attack Vector:
+
+[2-3 sentence explanation of how aiDAPTIV+ can exploit these weaknesses]
+
+By:
+- [Specific action/strategy #1]
+- [Specific action/strategy #2]
+
+[1-2 sentences explaining how this creates competitive advantage]
+
+## Recommendations:
+
+- [Specific recommendation #1]
+- [Specific recommendation #2]
+- [Specific recommendation #3]
+
+CRITICAL: You MUST provide specific details, technical facts, and concrete examples from the dossier content. Do NOT leave bullet points empty. Every bullet must contain substantive analysis.""",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
@@ -439,12 +498,12 @@ class SimulationOrchestrator:
             steps = [
                 {
                     "type": "thought",
-                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Scan the current news batch for 'Validation Signals'.\nQUESTION: Connect NVIDIA's recent hardware moves with Intel's client constraints. Specifically, how does this validate the need for KV-cache offloading?\nOUTPUT: Strategic synthesis of the market wedge.",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Analyze this news article and organize insights by topic.\n\nOUTPUT FORMAT:\n## Topic: [Primary Topic]\n**Source:** [Company/Organization from article]\n**Key Points:**\n- [Specific insight with numbers/quotes]\n- [Another insight]\n\n## Topic: [Secondary Topic]\n**Source:** [Company/Organization]\n**Key Points:**\n- [Specific insight]\n\nQUESTION: What does this mean for aiDAPTIV+? Does it validate our thesis? Create opportunity? Reveal threats?\nOUTPUT: Strategic analysis organized by topic with specific examples, numbers, and quotes. Always call out the source company/organization.",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
             ]
-        elif category == 'video' or (category == 'documentation' and 'transcript' in current_doc.get('name', '').lower()):
+        elif category == 'documentation' and 'transcript' in current_doc.get('name', '').lower():
             steps = [
                 {
                     "type": "observation",
@@ -464,10 +523,59 @@ class SimulationOrchestrator:
                 }
             ]
         elif category == 'social':
+            # Extract Reddit metadata for context
+            doc_metadata = current_doc.get('metadata', {})
+            subreddit = doc_metadata.get('subreddit', 'unknown')
+            author = doc_metadata.get('author', 'unknown')
+            upvotes = doc_metadata.get('upvotes', 0)
+            comments = doc_metadata.get('comments', 0)
+            
             steps = [
                 {
                     "type": "observation",
-                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Listen to the developer complaints.\nQUESTION: Are they crying about 'OOM' (Out of Memory)? Are they unable to run Llama-3-70B?\nOUTPUT: The 'Voice of the Customer' pain points that justify our existence.",
+                    "prompt": f"""DATA SOURCE: {current_doc.get('name', 'Unknown')}
+SUBREDDIT: r/{subreddit}
+USER: u/{author}
+ENGAGEMENT: {upvotes} upvotes, {comments} comments
+
+TASK: Analyze this Reddit post. Extract 2-3 key topics. For each topic, provide:
+1. Topic name
+2. Subreddit (r/{subreddit})
+3. User (u/{author})
+4. 2-3 specific bullet points
+
+CRITICAL: You MUST use double newlines between sections. Each topic must be separated by TWO blank lines.
+
+OUTPUT FORMAT (copy this exact structure):
+
+## Topic: [Topic Name]
+
+**Subreddit:** r/{subreddit}
+
+**User:** u/{author}
+
+**Key Points:**
+
+- [First specific insight]
+- [Second specific insight]
+- [Third insight if relevant]
+
+
+## Topic: [Next Topic Name]
+
+**Subreddit:** r/{subreddit}
+
+**User:** u/{author}
+
+**Key Points:**
+
+- [First insight]
+- [Second insight]
+
+
+Focus on: Memory/VRAM constraints, AI/LLM challenges, hardware limitations, developer frustrations, solutions discussed.
+
+IMPORTANT: Use double newlines (blank line) between each section. Do NOT write everything in one paragraph.""",
                     "system": virtual_pmm_identity,
                     "author": "@Virtual_PMM"
                 }
@@ -484,6 +592,12 @@ class SimulationOrchestrator:
         est_tokens = len(doc_text) // 4 if doc_text else int(current_doc.get('size_kb', 0) * 200)
         
         add_result = self.context_manager.add_document(current_doc, est_tokens)
+        
+        # Update memory monitor with actual context size from context manager
+        # This ensures KV cache estimate reflects the actual growing context
+        context_stats = self.context_manager.get_context_stats()
+        actual_context_tokens = context_stats.get('active_tokens', 0)
+        self.memory_monitor.set_context_size(actual_context_tokens)
         
         # Emit RAG storage event if document was stored
         if add_result.get("rag_storage"):
@@ -619,9 +733,9 @@ class SimulationOrchestrator:
                 
                 logger.info(f"Running Agent Step: {step['type']} with model {step_model}")
                 
-                # Collect image paths for llava (if processing images or videos)
+                # Collect image paths for llava (if processing images)
                 image_paths = []
-                if (category == 'image' or category == 'video') and current_doc and 'path' in current_doc:
+                if category == 'image' and current_doc and 'path' in current_doc:
                     image_paths.append(current_doc['path'])
                 
                 # Append metric reminder to the user prompt to ensure compliance
@@ -753,9 +867,7 @@ class SimulationOrchestrator:
         docs = []
         
         if scenario == "ces2026":
-            # Read actual files from documents/ces2026/
-            # Path: backend/services/orchestrator.py -> backend/ -> project_root/ -> documents/
-            ces_dir = Path(__file__).parent.parent.parent / "documents" / "ces2026"
+            ces_dir = Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026"
             
             # 1. README (Core Instructions) - Load FIRST
             readme = ces_dir / "README.md"
@@ -764,32 +876,66 @@ class SimulationOrchestrator:
                 size_kb = readme.stat().st_size / 1024
                 docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
             
-            # 2. Dossier files (Strategic Context) - Load SECOND
-            for file in sorted((ces_dir / "dossier").glob("*.txt")):
-                content = file.read_text(encoding='utf-8')
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1), "content": content})
+            # 2. Dossier files (Strategic Context) - Load SECOND (core context before live data)
+            dossier_dir = ces_dir / "dossier"
+            if dossier_dir.exists():
+                # Exclude Samsung/Silicon Motion (SSD controllers, not direct competitors) and Kioxia (NAND supplier/partner, not competitor)
+                excluded_dossiers = [
+                    "samsung_competitive_dossier.txt",  # SSD controller, not direct competitor
+                    "silicon_motion_competitive_dossier.txt",  # SSD controller, not direct competitor
+                    "kioxia_partnership_dossier.txt"  # NAND supplier/partner, not competitor (competes with Micron/Samsung in NAND, not with Phison)
+                ]
+                for file in sorted(dossier_dir.glob("*.txt")):
+                    if file.name in excluded_dossiers:
+                        logger.info(f"Skipping dossier (not competitor): {file.name}")
+                        continue
+                    content = file.read_text(encoding='utf-8')
+                    size_kb = file.stat().st_size / 1024
+                    docs.append({"name": file.name, "category": "dossier", "size_kb": round(size_kb, 1), "content": content})
             
-            # 3. News files
-            for file in sorted((ces_dir / "news").glob("*.txt")):
-                content = file.read_text(encoding='utf-8')
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1), "content": content})
+            # 3. LIVE REDDIT DATA - Load THIRD (after core context so analysis has strategic framework)
+            if app_config.DATA_SOURCE_MODE in ["live", "hybrid"]:
+                # Fetch live Reddit social signals AFTER core docs for better context
+                try:
+                    from services.data_source import get_data_source
+                    live_source = get_data_source("live")
+                    live_social = live_source.fetch_social(count=20)
+                    if live_social:
+                        logger.info(f"✅ Loaded {len(live_social)} live Reddit posts (after core context)")
+                        docs.extend(live_social)
+                except Exception as e:
+                    logger.warning(f"Failed to fetch live Reddit signals: {e}")
+                    if app_config.DATA_SOURCE_MODE == "hybrid":
+                        logger.info("Falling back to file-based social signals")
             
-            # 4. Social files
-            for file in sorted((ces_dir / "social").glob("*.txt")):
-                content = file.read_text(encoding='utf-8')
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
+            # 4. News files - Load from disk (pre-generated offline)
+            news_dir = ces_dir / "news"
+            if news_dir.exists():
+                for file in sorted(news_dir.glob("*.txt")):
+                    content = file.read_text(encoding='utf-8')
+                    size_kb = file.stat().st_size / 1024
+                    docs.append({"name": file.name, "category": "news", "size_kb": round(size_kb, 1), "content": content})
             
-            # 5. Image files (if tier supports it)
-            if self.current_tier in ["standard", "pro"]:
-                images_dir = ces_dir / "images"
-                if images_dir.exists():
-                    for subdir in ["infographics", "competitor_screenshots", "social_media"]:
-                        subdir_path = images_dir / subdir
-                        if subdir_path.exists():
-                            for file in sorted(subdir_path.glob("*.png")):
+            # 5. Social files - Load from disk (only if not in live mode)
+            social_dir = ces_dir / "social"
+            if social_dir.exists():
+                # In live mode, skip files (already have live Reddit). In hybrid/generated, include them.
+                if app_config.DATA_SOURCE_MODE != "live":
+                    for file in sorted(social_dir.glob("*.txt")):
+                        content = file.read_text(encoding='utf-8')
+                        size_kb = file.stat().st_size / 1024
+                        docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
+            
+            # 6. Image files - Load ALL images from all subdirectories
+            images_dir = ces_dir / "images"
+            if images_dir.exists():
+                # Load from all subdirectories
+                for subdir in ["infographics", "competitor_screenshots", "social_media"]:
+                    subdir_path = images_dir / subdir
+                    if subdir_path.exists():
+                        # Support multiple image formats
+                        for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
+                            for file in sorted(subdir_path.glob(ext)):
                                 size_kb = file.stat().st_size / 1024
                                 docs.append({
                                     "name": file.name,
@@ -798,33 +944,53 @@ class SimulationOrchestrator:
                                     "path": str(file),
                                     "content": f"[Image: {file.name}]"
                                 })
+                # Also check root images directory for any loose images
+                for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
+                    for file in sorted(images_dir.glob(ext)):
+                        size_kb = file.stat().st_size / 1024
+                        docs.append({
+                            "name": file.name,
+                            "category": "image",
+                            "size_kb": round(size_kb, 1),
+                            "path": str(file),
+                            "content": f"[Image: {file.name}]"
+                        })
             
-            # 6. Video transcripts (categorized as documentation since they're text files)
+            # 7. Video transcripts (categorized as documentation since they're text file transcripts)
             video_dir = ces_dir / "video"
             if video_dir.exists():
                 for file in sorted(video_dir.glob("*.txt")):
                     content = file.read_text(encoding='utf-8')
                     size_kb = file.stat().st_size / 1024
-                    docs.append({"name": file.name, "category": "video", "size_kb": round(size_kb, 1), "content": content})
+                    docs.append({"name": file.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
         
         # Sort documents by priority for demo:
-        # 1. NVIDIA CES 2026 keynote transcript (FIRST - user priority)
-        # 2. Images (multi-modal demo)
-        # 3. Dossier (core context)
-        # 4. Videos (multi-modal demo)
-        # 5. Everything else
+        # 1. README (core instructions)
+        # 2. Dossier (core context/strategic framework)
+        # 3. Live Reddit posts (after core context for better analysis)
+        # 4. NVIDIA CES 2026 keynote transcript (user priority)
+        # 5. Images (multi-modal demo)
+        # 6. Video transcripts (documentation category)
+        # 7. Everything else
         def get_priority(doc):
-            # NVIDIA transcript gets highest priority
-            if doc.get('name') == 'nvidia_CES_2026_keynote_transcript.txt':
+            # README gets highest priority
+            if doc.get('category') == 'documentation':
                 return 0
-            elif doc['category'] == 'image':
+            # Dossier gets second priority (core context)
+            elif doc.get('category') == 'dossier':
                 return 1
-            elif doc['category'] == 'dossier':
+            # Live Reddit posts get third priority (after core context)
+            elif doc.get('source') == 'reddit':
                 return 2
-            elif doc['category'] == 'video':
+            # NVIDIA transcript gets fourth priority
+            elif doc.get('name') == 'nvidia_CES_2026_keynote_transcript.txt':
                 return 3
-            else:
+            elif doc['category'] == 'image':
                 return 4
+            elif doc['category'] == 'documentation' and 'transcript' in doc.get('name', '').lower():
+                return 5
+            else:
+                return 6
         
         docs.sort(key=get_priority)
         

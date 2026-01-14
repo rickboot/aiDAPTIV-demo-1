@@ -51,10 +51,32 @@
         "nand_suppliers": {
             "primary": "Kioxia (strategic investor & shareholder in Phison - provides guaranteed access to cutting-edge 3D NAND, technology roadmap alignment, early access to new NAND generations, and supply chain security that competitors cannot easily replicate)",
             "secondary": [
-                "Micron",
-                "Samsung"
-            ]
+                "Micron (co-development partnerships, e.g., Crucial T700)",
+                "Samsung",
+                "SK Hynix"
+            ],
+            "note": "Long-term strategic partnerships with major NAND flash makers to integrate latest NAND technology into controllers. Phison acts as ecosystem hub connecting upstream NAND suppliers with downstream application customers."
         },
+        "system_integrators_software": [
+            "StorONE (high-IOPS performance solutions)",
+            "Cigent (security/ransomware defense solutions)",
+            "Seagate (Nytro, IronWolf Pro - controllers and design services via IMAGIN+ lab)"
+        ],
+        "ai_edge_computing": [
+            "Advantech (GenAI platforms for edge applications using aiDAPTIV+ technology)"
+        ],
+        "automotive_industrial": [
+            "Specialized controllers for automotive-grade applications (targeting significant market share)"
+        ],
+        "space_exploration": [
+            "Lonestar (durable storage for lunar missions, extreme-condition resilience)"
+        ],
+        "major_tech_brands": [
+            "AMD (co-development partnerships)",
+            "Seagate (Nytro, IronWolf Pro)",
+            "Micron (Crucial T700)",
+            "Advantech (AI/edge computing)"
+        ],
         "oem_customers": [
             "Dell",
             "HP",
@@ -67,6 +89,19 @@
             "Newegg",
             "Micro Center",
             "Major distributors (NA, EU, APAC)"
+        ],
+        "partnership_model": {
+            "early_technology_enablement": "Phison gets involved early with new NAND and interface technologies (like PCIe Gen5), allowing partners to be first-to-market",
+            "customization_co_development": "Phison offers customized controller and firmware designs (e.g., for Vidura), tailored for specific performance or feature needs, often through joint labs (IMAGIN+ lab)",
+            "shared_vision": "Partners share goals in innovation and user experience, combining Phison's controller/firmware mastery with partners' system-level expertise",
+            "ecosystem_approach": "Phison acts as central hub, connecting upstream NAND suppliers with downstream application customers, creating resilient supply chain"
+        },
+        "value_to_partners": [
+            "Deep NAND ecosystem knowledge",
+            "Customized technology solutions",
+            "Rapid time-to-market for cutting-edge, high-performance storage",
+            "Early adoption of new technologies (PCIe Gen5, latest NAND generations)",
+            "Comprehensive solutions combining hardware with advanced software"
         ]
     },
     "ecosystem": {

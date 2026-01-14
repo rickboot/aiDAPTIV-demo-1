@@ -1,0 +1,19 @@
+Twitter Thread - @karpathy
+
+Date: January 28, 2026
+Likes: 3001
+Retweets: 682
+Replies: 367
+
+THREAD:
+1/6 The memory bottleneck in AI is real. Llama-3-70B requires 80GB but most hardware only provides 32GB. We need better solutions.
+
+2/6 KV cache grows quadratically with context length. A 512k context window needs 40GB just for cache.
+
+3/6 This is why we're seeing more interest in offloading strategies - SSD, system RAM, anything to break the VRAM wall.
+
+ENGAGEMENT:
+Thread received 2935 likes, 980 retweets, and 351 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. karpathy has 549660 followers. High engagement suggests broad awareness of the issue.

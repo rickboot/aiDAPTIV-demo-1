@@ -1,0 +1,14 @@
+SK Hynix Press Release - February 26, 2026
+
+SK Hynix today unveiled its AI Accelerator platform, featuring 128GB of DDR5 memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 128GB DDR5
+- Bandwidth: 800GB/s
+- Target Market: Data Centers
+- Availability: Immediate
+
+STRATEGIC IMPLICATIONS:
+Highlights the gap between model requirements and available hardware
+
+This development reinforces the need for memory optimization solutions like aiDAPTIV+.

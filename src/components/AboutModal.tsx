@@ -97,7 +97,7 @@ export const AboutModal = ({ isOpen, onClose }: AboutModalProps) => {
                             <div className="text-sm">
                                 <strong>Processing Flow:</strong>
                                 <ol className="list-decimal list-inside space-y-1 mt-2 text-text-secondary">
-                                    <li>Documents loaded from <code className="text-xs bg-black/30 px-1 rounded">/documents/pmm/[tier]/</code></li>
+                                    <li>Documents loaded from <code className="text-xs bg-black/30 px-1 rounded">/data/realstatic/ces2026/</code> or <code className="text-xs bg-black/30 px-1 rounded">/data/dummy/pmm/[tier]/</code></li>
                                     <li>Content combined into unified context string (~22K chars for lite, ~180K for large)</li>
                                     <li>Context sent to LLM with phase-specific prompts</li>
                                     <li>LLM streams reasoning back in real-time</li>

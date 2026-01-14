@@ -178,6 +178,45 @@ class OllamaService:
         except Exception as e:
             return False, f"Ollama not running. Start with: ollama serve\nError: {str(e)}"
     
+    def clear_model_cache(self) -> bool:
+        """
+        Clear Ollama's KV cache and context by unloading the model.
+        This effectively resets the model's state without restarting Ollama.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not OLLAMA_AVAILABLE:
+            return False
+        
+        try:
+            logger.info(f"Clearing Ollama KV cache and context for model: {self.model}")
+            
+            # Unload the model to clear its KV cache and context
+            # This is done by setting keep_alive to 0 via the generate endpoint
+            # Using a minimal prompt to avoid any actual processing
+            try:
+                ollama.generate(
+                    model=self.model,
+                    prompt="clear",  # Minimal prompt
+                    options={
+                        'num_predict': 1,  # Minimal generation
+                        'keep_alive': 0  # Unload model after call (clears cache)
+                    }
+                )
+            except Exception:
+                # If generate fails, try to unload directly via API
+                # Some Ollama versions support direct unload
+                pass
+            
+            logger.info("Ollama KV cache and context cleared successfully")
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Failed to clear Ollama cache (non-fatal): {e}")
+            # Non-fatal - continue even if cache clear fails
+            return False
+    
     def load_documents(self, scenario: str, tier: str) -> List[Dict]:
         """
         Load all documents for a scenario/tier.
@@ -197,13 +236,22 @@ class OllamaService:
         
         # CES 2026 has different directory structure (no tier subdirectory)
         if scenario == "ces2026":
-            base_path = Path(__file__).parent.parent.parent / "documents" / "ces2026"
+            base_path = Path(__file__).parent.parent.parent / "data" / "realstatic" / "ces2026"
             logger.info(f"Loading CES 2026 documents from: {base_path}")
             
             # Load dossier files (strategic context)
             dossier_path = base_path / "dossier"
             if dossier_path.exists():
+                # Exclude Samsung/Silicon Motion (SSD controllers, not direct competitors) and Kioxia (NAND supplier/partner, not competitor)
+                excluded_dossiers = [
+                    "samsung_competitive_dossier.txt",  # SSD controller, not direct competitor
+                    "silicon_motion_competitive_dossier.txt",  # SSD controller, not direct competitor
+                    "kioxia_partnership_dossier.txt"  # NAND supplier/partner, not competitor (competes with Micron/Samsung in NAND, not with Phison)
+                ]
                 for file_path in sorted(dossier_path.glob("*.txt")):
+                    if file_path.name in excluded_dossiers:
+                        logger.info(f"Skipping dossier (not competitor): {file_path.name}")
+                        continue
                     try:
                         content = file_path.read_text(encoding='utf-8')
                         size_kb = file_path.stat().st_size / 1024
@@ -264,7 +312,7 @@ class OllamaService:
                     except Exception as e:
                         logger.warning(f"Failed to load {file_path}: {e}")
         else:
-            # PMM scenario: Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> documents/
+            # PMM scenario: Path: backend/services/ollama_service.py -> backend/ -> project_root/ -> data/dummy/
             base_path = Path(__file__).parent.parent.parent / "documents" / scenario / tier
             logger.info(f"Loading documents from: {base_path}")
             

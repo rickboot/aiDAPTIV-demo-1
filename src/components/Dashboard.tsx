@@ -11,8 +11,22 @@ const stripMetricMarkers = (content: string): string => {
         .replace(/\[PATTERN:\s*[^\]]+\]/gi, '')
         .replace(/\[INSIGHT:\s*[^\]]+\]/gi, '')
         .replace(/\[FLAG:\s*[^\]]+\]/gi, '')
-        .replace(/\s+/g, ' ') // Clean up multiple spaces
         .trim();
+};
+
+// Normalize markdown formatting - ensure proper paragraph breaks
+const normalizeMarkdown = (content: string): string => {
+    // Ensure headers have blank lines before them
+    content = content.replace(/([^\n])\n(##\s+)/g, '$1\n\n$2');
+    // Ensure headers have blank lines after them
+    content = content.replace(/(##\s+[^\n]+)\n([^\n])/g, '$1\n\n$2');
+    // Ensure bold text on its own line has spacing
+    content = content.replace(/(\*\*[^*]+\*\*)\n([^\n])/g, '$1\n\n$2');
+    // Normalize multiple newlines to double newlines (paragraph breaks)
+    content = content.replace(/\n{3,}/g, '\n\n');
+    // Ensure list items have proper spacing
+    content = content.replace(/([^\n])\n(-|\*|\d+\.)/g, '$1\n\n$2');
+    return content;
 };
 
 import { SettingsModal } from './SettingsModal';
@@ -186,7 +200,7 @@ export const Dashboard = () => {
     const {
         feed, worldModel, metrics, currentActivity, activityLog,
         isAnalysisRunning, startAnalysis, stopAnalysis,
-        activeScenario, tier
+        activeScenario, tier, totalDocuments
     } = useScenario();
 
     const activeFileRef = React.useRef<HTMLDivElement>(null);
@@ -348,11 +362,41 @@ export const Dashboard = () => {
 
 
                                                 <div className={`text-sm tracking-wide font-sans leading-relaxed transition-colors prose prose-invert max-w-none 
-                                                    prose-p:my-1 prose-ul:my-1 prose-li:my-0 prose-strong:text-cyan-300 prose-strong:font-bold prose-headings:text-sm prose-headings:font-bold ${focusedThoughtId === item.id
+                                                    prose-p:my-2 prose-p:leading-relaxed
+                                                    prose-ul:my-2 prose-li:my-1 prose-li:leading-relaxed
+                                                    prose-strong:text-cyan-300 prose-strong:font-semibold
+                                                    prose-headings:mt-6 prose-headings:mb-3 prose-headings:font-bold
+                                                    prose-h2:text-cyan-400 prose-h2:text-lg prose-h2:border-b prose-h2:border-cyan-400/30 prose-h2:pb-2 prose-h2:mt-8 prose-h2:mb-4
+                                                    prose-h3:text-cyan-300 prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                                                    ${focusedThoughtId === item.id
                                                         ? 'text-white'
                                                         : 'text-text-primary opacity-90'
                                                     }`}>
-                                                    <ReactMarkdown>{stripMetricMarkers(item.content)}</ReactMarkdown>
+                                                    <ReactMarkdown
+                                                        components={{
+                                                            // Ensure paragraphs have proper spacing
+                                                            p: ({node, ...props}) => (
+                                                                <p className="my-3 leading-relaxed whitespace-pre-wrap" {...props} />
+                                                            ),
+                                                            // Make topic headers very visible
+                                                            h2: ({node, ...props}) => (
+                                                                <h2 className="text-cyan-400 font-bold text-lg mt-8 mb-4 pb-2 border-b border-cyan-400/30 first:mt-0 block" {...props} />
+                                                            ),
+                                                            // Style strong/bold text (but not make it too prominent)
+                                                            strong: ({node, ...props}) => (
+                                                                <strong className="text-cyan-200 font-semibold" {...props} />
+                                                            ),
+                                                            // Style lists
+                                                            ul: ({node, ...props}) => (
+                                                                <ul className="my-3 space-y-2 ml-4" {...props} />
+                                                            ),
+                                                            li: ({node, ...props}) => (
+                                                                <li className="leading-relaxed" {...props} />
+                                                            ),
+                                                        }}
+                                                    >
+                                                        {normalizeMarkdown(stripMetricMarkers(item.content))}
+                                                    </ReactMarkdown>
                                                 </div>
                                                 {/* Related Docs Pill */}
                                                 {item.relatedDocIds && item.relatedDocIds.length > 0 && (
@@ -379,7 +423,7 @@ export const Dashboard = () => {
                                 <div className="flex justify-between items-center">
                                     <h3 className="font-bold text-text-primary text-xs uppercase tracking-widest">Data Sources</h3>
                                     <div className="flex gap-4 text-xs font-mono">
-                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / {tier === 'large' ? 268 : 21}</span>
+                                        <span className="text-text-secondary">PROCESSED: <strong className="text-emerald-400">{worldModel.filter(i => i.status === 'vram').length}</strong> / {totalDocuments || worldModel.length}</span>
                                     </div>
                                 </div>
                                 {/* Filter Toolbar */}

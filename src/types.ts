@@ -24,6 +24,7 @@ export interface WorldModelItem {
     id: string;
     type: 'screenshot' | 'pdf_embedding' | 'code' | 'text_document' | 'video_transcript';
     title: string;
+    category?: string; // Document category from backend (e.g., 'documentation', 'image', 'news')
     memorySize: number; // in MB
     lastAccessed: number;
     status: WorldModelStatus;

@@ -1,0 +1,14 @@
+Intel Press Release - February 05, 2026
+
+Intel today unveiled its Data Center Platform platform, featuring 32GB of HBM4 memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 32GB HBM4
+- Bandwidth: 1600GB/s
+- Target Market: AI Workloads
+- Availability: Q1 2026
+
+STRATEGIC IMPLICATIONS:
+Demonstrates industry recognition of memory constraints
+
+This development reinforces the need for memory optimization solutions like aiDAPTIV+.

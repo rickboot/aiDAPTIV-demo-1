@@ -1,10 +1,15 @@
 """
 Memory monitoring service for aiDAPTIV+ demo.
 Uses real system telemetry via psutil.
+Attempts to get real KV cache stats from Ollama when available.
 """
 
+import logging
 import psutil
 from models.schemas import MemoryData, ScenarioConfig
+from services.ollama_telemetry import get_ollama_telemetry
+
+logger = logging.getLogger(__name__)
 
 
 class MemoryMonitor:
@@ -34,6 +39,9 @@ class MemoryMonitor:
         self.current_model_name = "llama3.1:8b"
         self.current_model_size_gb = 5.0  # Default: llama3.1:8b
         
+        # Ollama telemetry (for real KV cache stats)
+        self.ollama_telemetry = get_ollama_telemetry()
+        
     def set_context_size(self, tokens: int):
         """Update current context size in tokens."""
         self.context_tokens = tokens
@@ -53,19 +61,37 @@ class MemoryMonitor:
     
     def _estimate_kv_cache_size(self) -> float:
         """
-        Estimate KV cache size in GB based on context tokens.
+        Get KV cache size - tries real Ollama telemetry first, then estimates.
         
-        Formula: tokens × layers × hidden_dim × 2 (K+V) × bytes_per_param / (1024^3)
-        Simplified: tokens × 0.000015 GB (empirical approximation)
+        Returns:
+            KV cache size in GB
         """
         if self.context_tokens == 0:
             return 0.0
         
-        # Rough estimate: ~15KB per 1000 tokens for 8B model
-        # Scales with model size
-        base_per_1k_tokens = 0.015  # 15MB per 1000 tokens
-        scale_factor = self.current_model_size_gb / 5.0
+        # Try to get real KV cache from Ollama (logs or API)
+        if self.ollama_telemetry:
+            try:
+                kv_info = self.ollama_telemetry.get_kv_cache_info(
+                    self.context_tokens,
+                    self.current_model_size_gb
+                )
+                kv_cache_gb = kv_info.get("kv_cache_gb", 0.0)
+                source = kv_info.get("source", "unknown")
+                
+                # Log if we got real telemetry
+                if source == "ollama_logs":
+                    logger.debug(f"KV Cache from Ollama logs: {kv_cache_gb}GB")
+                elif source == "ollama_api_estimate":
+                    logger.debug(f"KV Cache estimated from Ollama API: {kv_cache_gb}GB")
+                
+                return kv_cache_gb
+            except Exception as e:
+                logger.debug(f"Could not get Ollama KV cache telemetry: {e}")
         
+        # Fallback to formula-based estimate
+        base_per_1k_tokens = 0.015  # 15MB per 1000 tokens for 8B model
+        scale_factor = self.current_model_size_gb / 5.0  # Scale with model size
         kv_cache_gb = (self.context_tokens / 1000) * base_per_1k_tokens * scale_factor
         return round(kv_cache_gb, 2)
         

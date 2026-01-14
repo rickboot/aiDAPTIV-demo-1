@@ -1,0 +1,17 @@
+Reddit Discussion - r/artificial
+
+User: u/user_2625
+Date: January 29, 2026
+Upvotes: 332
+Comments: 19
+
+POST:
+Is 24GB VRAM enough for Mixtral-8x7B? Getting crashes during inference.
+
+TOP COMMENTS:
+u/dev_help: 'Same issue here. 24GB isn't enough for Mixtral-8x7B.'
+u/ai_researcher: 'KV cache is the problem. You need 60GB+ for 256k context.'
+u/hardware_guru: 'This is why SSD offloading is becoming popular.'
+
+ANALYSIS:
+Developer community expressing frustration with VRAM limitations. Mixtral-8x7B requires 60GB+ but most GPUs only have 24GB. Strong signal for memory offloading solutions.
