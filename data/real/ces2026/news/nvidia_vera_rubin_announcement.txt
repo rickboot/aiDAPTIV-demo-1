@@ -1,0 +1,47 @@
+NVIDIA ANNOUNCES VERA RUBIN AI PLATFORM AT CES 2026
+Press Release | January 7, 2026 | Las Vegas, NV
+
+NVIDIA today unveiled its next-generation Vera Rubin AI computing platform, now in full production and available to partners. CEO Jensen Huang keynoted the announcement at CES 2026, emphasizing the platform's role in addressing the escalating memory demands of AI workloads.
+
+KEY PLATFORM SPECIFICATIONS:
+
+Rubin GPUs:
+- 50 petaflops NVFP4 inference performance
+- 22TB/s HBM4 bandwidth
+- Designed for training and inference acceleration
+
+Vera CPUs:
+- 1.5TB system memory capacity
+- 1.8TB/s NVLink bandwidth
+- Optimized for "agentic processing" and data movement
+
+Interconnect Technology:
+- NVLink 6: 3.6TB/s per GPU all-to-all bandwidth
+- Spectrum-X Ethernet Photonics: 102.4Tb/s switching
+- ConnectX-9 SuperNICs: 800 Gb/s Ethernet
+- BlueField-4 DPUs: 800 Gb/s
+
+INFERENCE CONTEXT MEMORY STORAGE PLATFORM:
+
+NVIDIA introduced a new class of AI-native storage infrastructure powered by BlueField-4 data processors. The platform features:
+
+- AI-native KV-cache tier for long-context inference
+- 5x increase in tokens per second for extended contexts
+- Designed to address GPU bottlenecks from storing vast context data
+- Enables high-bandwidth sharing of context across rack-scale AI systems
+
+"The Vera Rubin platform represents a 3.5x improvement in training performance and 5x in inference over Blackwell," stated Huang. "However, we anticipate memory and storage demand will continue to outpace supply throughout 2026."
+
+MARKET IMPLICATIONS:
+
+Major partners including Microsoft, CoreWeave, and Nebius plan to integrate Rubin into their AI clouds in H2 2026. The platform's massive memory requirements (1.5TB system memory per CPU) underscore the industry's shift toward memory-intensive AI architectures.
+
+Huang acknowledged that despite these advances, "memory shortages will persist as AI model complexity grows faster than manufacturing capacity."
+
+AVAILABILITY:
+Vera Rubin platform: H2 2026
+BlueField-4 DPUs: H2 2026
+
+---
+Source: NVIDIA Press Release, CES 2026
+Contact: NVIDIA Investor Relations

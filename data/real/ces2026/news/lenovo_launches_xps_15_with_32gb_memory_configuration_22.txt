@@ -1,0 +1,19 @@
+Lenovo Product Announcement - February 01, 2026
+
+Lenovo today announced the XPS 15, featuring up to 32GB of LPDDR5X memory, targeting Enterprise.
+
+PRODUCT SPECIFICATIONS:
+- Model: XPS 15
+- Memory Options: 16GB/32GB/64GB
+- Processor: Apple M4
+- Price: $3337
+- Availability: Q1 2026
+
+MARKET POSITIONING:
+Lenovo positions the XPS 15 as a premium Enterprise solution, emphasizing memory capacity as a key differentiator.
+
+MEMORY CONSTRAINTS:
+High memory configurations command premium pricing
+
+STRATEGIC IMPLICATIONS:
+Soldered configurations drive need for external memory solutions

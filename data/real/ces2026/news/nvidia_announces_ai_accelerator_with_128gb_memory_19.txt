@@ -1,0 +1,14 @@
+NVIDIA Press Release - January 29, 2026
+
+NVIDIA today unveiled its AI Accelerator platform, featuring 128GB of HBM4 memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 128GB HBM4
+- Bandwidth: 3200GB/s
+- Target Market: Data Centers
+- Availability: Immediate
+
+STRATEGIC IMPLICATIONS:
+Demonstrates industry recognition of memory constraints
+
+This development reinforces the need for memory optimization solutions like aiDAPTIV+.

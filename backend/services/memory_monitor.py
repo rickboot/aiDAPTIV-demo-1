@@ -51,11 +51,16 @@ class MemoryMonitor:
         self.current_model_name = model_name
         model_sizes = {
             "llama3.1:8b": 5.0,
+            "llama3.2:3b": 2.0,  # Much lighter dev model
+            "phi3:mini": 1.7,  # Very light dev model
             "qwen2.5:14b": 9.0,
+            "qwen2.5:7b": 4.7,  # Lighter dev model
             "qwen2.5:32b": 19.0,
             "llava:13b": 8.0,
             "llava:34b": 20.0,
-            "llava": 4.7
+            "llava:latest": 4.7,  # Lighter dev model
+            "llava": 4.7,
+            "gemma:2b": 4.1
         }
         self.current_model_size_gb = model_sizes.get(model_name, 5.0)
     

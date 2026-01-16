@@ -1,0 +1,15 @@
+Twitter Thread - @JeffDean
+
+Date: January 11, 2026
+Likes: 4469
+Retweets: 741
+Replies: 172
+
+THREAD:
+The AI hardware stack is fundamentally memory-constrained. 68% of inference failures are OOM errors. We need architectural changes, not just bigger GPUs.
+
+ENGAGEMENT:
+Thread received 2771 likes, 884 retweets, and 448 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. JeffDean has 646622 followers. High engagement suggests broad awareness of the issue.

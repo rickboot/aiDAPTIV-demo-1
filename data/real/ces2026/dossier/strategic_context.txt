@@ -1,0 +1,210 @@
+# PHISON STRATEGIC INTELLIGENCE FRAMEWORK
+## Q1 2026 - CES Monitoring Context
+
+This document defines the strategic lens through which market intelligence should be interpreted for Phison's aiDAPTIV+ product marketing.
+
+---
+
+## CORE THESIS
+
+**"AI model growth is outpacing memory capacity growth. Local/edge AI requires memory offload architectures. Phison aiDAPTIV+ is the cost-effective solution."**
+
+---
+
+## STRATEGIC INFERENCE RULES
+
+### Rule 1: Memory Constraints = OPPORTUNITY
+**IF** news mentions:
+- DRAM shortage, price increases, supply constraints
+- AI models requiring more memory than available
+- Developers hitting VRAM/RAM limits
+- OEMs shipping PCs with limited memory (16GB, 32GB caps)
+
+**THEN** Interpretation:
+- **Sentiment**: POSITIVE for Phison
+- **Reasoning**: Memory scarcity drives demand for offload solutions
+- **Action**: Highlight aiDAPTIV+ as cost-effective alternative
+
+**Example Signals**:
+- "SK Hynix 2026 capacity sold out"
+- "DRAM prices up 55-60% in Q1"
+- "Dell XPS ships with soldered 16GB RAM"
+- "Reddit: Can't run Llama 70B on my 4090"
+
+---
+
+### Rule 2: Cloud AI Infrastructure = VALIDATION (Not Threat)
+**IF** news mentions:
+- NVIDIA datacenter memory solutions (e.g., "Domino", HBM innovations)
+- Cloud providers building massive AI infrastructure
+- Enterprise spending billions on AI servers
+
+**THEN** Interpretation:
+- **Sentiment**: NEUTRAL to POSITIVE (Market Validation)
+- **Reasoning**: Proves memory bottleneck is real, but cloud ≠ edge
+- **Action**: Position as "They solve it in cloud, we solve it at edge"
+
+**Example Signals**:
+- "NVIDIA Vera Rubin with 1.5TB system memory"
+- "NVIDIA Inference Context Memory Storage Platform"
+- "Microsoft Azure expanding AI capacity"
+
+**Key Insight**: Cloud solutions validate the problem exists. They don't compete with local AI use cases (privacy, latency, cost).
+
+---
+
+### Rule 3: Flash Supply Dynamics = MIXED SIGNAL
+**IF** news mentions:
+- NAND flash shortages, price increases
+- Kioxia production updates
+- NAND manufacturers capacity constraints
+
+**THEN** Interpretation:
+- **Sentiment**: MIXED (Depends on context)
+- **Reasoning**: 
+  - Bad: Higher SSD costs could hurt aiDAPTIV+ pricing
+  - Good: Phison-Kioxia partnership provides supply security advantage
+- **Action**: Monitor for competitive advantage opportunities
+
+**Example Signals**:
+- "Kioxia 332-layer BiCS10 ramping in 2026" → POSITIVE (partner strength)
+- "NAND prices up 33-38% Q1 2026" → NEUTRAL (affects all players)
+- "Samsung reducing MLC production" → OPPORTUNITY (supply gap)
+
+---
+
+### Rule 4: OEM Supply Chain Concerns = PARTNERSHIP OPPORTUNITY
+**IF** news mentions:
+- OEMs expressing supply chain worries
+- Component shortages affecting PC production
+- OEMs seeking reliable partners
+
+**THEN** Interpretation:
+- **Sentiment**: POSITIVE (Partnership Opportunity)
+- **Reasoning**: Phison can offer supply security via Kioxia relationship
+- **Action**: Proactive outreach to strengthen partnerships
+
+**Example Signals**:
+- "Dell acknowledges memory supply pressures"
+- "HP seeking alternative suppliers"
+- "ASUS diversifying component sources"
+
+---
+
+### Rule 5: Competitor Innovations = THREAT (Monitor Closely)
+**IF** news mentions:
+- Samsung/Silicon Motion/Marvell new AI-focused controllers
+- Competitive pricing announcements
+- New memory offload technologies
+
+**THEN** Interpretation:
+- **Sentiment**: NEGATIVE (Competitive Threat)
+- **Reasoning**: Direct competition for aiDAPTIV+ market
+- **Action**: Competitive analysis, feature comparison, response strategy
+
+**Example Signals**:
+- "Samsung PM9E1 with AI optimizations"
+- "Silicon Motion MonTitan for AI workloads"
+- "Marvell announces AI SSD controller"
+
+---
+
+### Rule 6: Developer/Grassroots Signals = EARLY WARNING SYSTEM
+**IF** social media/forums mention:
+- Developers struggling with memory limits
+- Workarounds for running large models locally
+- Complaints about cloud costs
+- Interest in on-premises AI
+
+**THEN** Interpretation:
+- **Sentiment**: POSITIVE (Market Demand Validation)
+- **Reasoning**: Grassroots pain points = product-market fit signals
+- **Action**: Engage community, provide solutions, gather feedback
+
+**Example Signals**:
+- "Reddit r/LocalLLaMA: 24GB VRAM is the minimum"
+- "HackerNews: AWS bills killing my startup"
+- "Twitter: @karpathy on context memory challenges"
+- "GitHub Issues: OOM errors in LLM projects"
+
+---
+
+### Rule 7: Apple/Premium Segment = MARKET VALIDATION
+**IF** news mentions:
+- Apple unified memory configurations
+- High-end workstations with massive RAM
+- Premium pricing for memory upgrades
+
+**THEN** Interpretation:
+- **Sentiment**: POSITIVE (Validates problem, highlights cost gap)
+- **Reasoning**: Premium solutions prove demand exists; aiDAPTIV+ democratizes access
+- **Action**: Position as "affordable alternative to $7000 Mac Studio"
+
+**Example Signals**:
+- "Mac Studio M5 Ultra with 512GB unified memory"
+- "Apple charging $2400 for 512GB upgrade"
+- "Workstation market growing despite high prices"
+
+---
+
+## ENTITY PRIORITY MATRIX
+
+### Tier 1 - Critical Monitoring (Daily)
+- **Partners**: Kioxia, Dell, HP
+- **Competitors**: Samsung, Silicon Motion, Marvell
+- **Influencers**: Jensen Huang (NVIDIA), Andrej Karpathy, major AI researchers
+
+### Tier 2 - Important Monitoring (Weekly)
+- **OEMs**: ASUS, Acer, Lenovo, Supermicro
+- **Memory Makers**: SK Hynix, Micron
+- **Analysts**: TrendForce, Gartner, IDC
+
+### Tier 3 - Background Monitoring (Monthly)
+- **Retailers**: Newegg, Micro Center
+- **Communities**: r/LocalLLaMA, HackerNews, GitHub
+- **Media**: AnandTech, Tom's Hardware, The Verge
+
+---
+
+## TOPIC KEYWORDS (Auto-Flag for Analysis)
+
+### High Priority
+- Memory shortage, DRAM shortage, HBM shortage
+- AI PC, edge AI, local AI, on-premises AI
+- Memory offload, SSD offload, tiered memory
+- Context window, KV cache, model size
+- Supply chain, component shortage, allocation
+
+### Medium Priority
+- PCIe Gen5, NVMe, SSD controller
+- LLM inference, model training, fine-tuning
+- Privacy, data sovereignty, cloud costs
+- NAND flash, 3D NAND, QLC, TLC
+
+### Low Priority (Context Only)
+- Datacenter AI, cloud AI (unless related to edge comparison)
+- Gaming GPUs (unless memory-related)
+- Mobile AI (different use case)
+
+---
+
+## OUTPUT EXPECTATIONS
+
+When analyzing intelligence, the system should:
+
+1. **Identify Relevance**: Does this news relate to Phison's strategic priorities?
+2. **Apply Context**: Which strategic rule(s) apply?
+3. **Determine Sentiment**: POSITIVE (Opportunity), NEGATIVE (Threat), NEUTRAL (Context), MIXED
+4. **Explain Reasoning**: Why does this matter to Phison specifically?
+5. **Suggest Action**: What should PMM team do with this insight?
+
+**Example Output**:
+```
+Source: TrendForce Report - Q1 2026 DRAM Forecast
+Relevance: HIGH
+Strategic Rule: #1 (Memory Constraints = Opportunity)
+Sentiment: POSITIVE
+Reasoning: 55-60% DRAM price increase will force OEMs to limit PC memory configurations, 
+creating demand for memory offload solutions like aiDAPTIV+.
+Suggested Action: Prepare messaging on "aiDAPTIV+ as cost-effective alternative to expensive DRAM upgrades"
+```

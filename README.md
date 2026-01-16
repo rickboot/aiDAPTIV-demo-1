@@ -459,8 +459,6 @@ if not aidaptiv_enabled and swap_delta > 2.0:
 
 **Partially complete:**
 - KV cache telemetry depends on Ollama support; fallback is estimate
-- Reddit integration works without OAuth; OAuth path is incomplete
-- Business metrics are placeholders
 
 ### Phase 2: More Real Metrics
 

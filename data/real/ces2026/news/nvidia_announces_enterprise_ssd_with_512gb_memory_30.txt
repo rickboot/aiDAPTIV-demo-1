@@ -1,0 +1,14 @@
+NVIDIA Press Release - February 09, 2026
+
+NVIDIA today unveiled its Enterprise SSD platform, featuring 512GB of HBM4 memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 512GB HBM4
+- Bandwidth: 800GB/s
+- Target Market: Data Centers
+- Availability: Immediate
+
+STRATEGIC IMPLICATIONS:
+Highlights the gap between model requirements and available hardware
+
+This development highlights the need for memory optimization solutions like aiDAPTIV+.

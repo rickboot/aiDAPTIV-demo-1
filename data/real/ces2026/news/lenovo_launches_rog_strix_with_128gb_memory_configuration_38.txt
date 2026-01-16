@@ -1,0 +1,19 @@
+Lenovo Product Announcement - February 17, 2026
+
+Lenovo today announced the ROG Strix, featuring up to 128GB of LPDDR5 memory, targeting AI PC.
+
+PRODUCT SPECIFICATIONS:
+- Model: ROG Strix
+- Memory Options: 16GB/32GB/64GB
+- Processor: AMD Ryzen AI
+- Price: $2152
+- Availability: Immediate
+
+MARKET POSITIONING:
+Lenovo positions the ROG Strix as a premium AI PC solution, emphasizing memory capacity as a key differentiator.
+
+MEMORY CONSTRAINTS:
+Memory capacity constraints impact AI workload performance
+
+STRATEGIC IMPLICATIONS:
+OEM constraints create partnership opportunities for memory solutions

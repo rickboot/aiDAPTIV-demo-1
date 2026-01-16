@@ -1,0 +1,82 @@
+# PHISON ELECTRONICS CORPORATION - COMPANY PROFILE
+
+## Overview
+Phison Electronics Corporation is a global leader in NAND flash controller IC design and integrated solutions. Founded in 2000 and headquartered in Taiwan, Phison provides comprehensive NAND storage solutions spanning the entire ecosystem from controllers to complete SSD modules.
+
+## Core Products & Technology
+
+### E26 PCIe Gen5 Controller
+- Industry-leading PCIe Gen 5.0 x4 NVMe controller
+- Sequential read: 14,000+ MB/s
+- Sequential write: 12,000+ MB/s
+- Powers flagship consumer and enterprise SSDs globally
+
+### aiDAPTIV+ Technology
+**Mission**: Democratize AI by making local AI accessible and affordable
+
+**Core Innovation**: SSD-based memory offload architecture that extends GPU/system memory for AI workloads
+- Enables LLM training and inference on consumer hardware
+- Reduces dependency on expensive HBM/GDDR memory
+- Targets AI PCs, workstations, and edge computing environments
+
+**Value Proposition**:
+- **Cost**: 10-100x cheaper than GPU memory expansion
+- **Accessibility**: Enables on-premises AI without cloud dependency
+- **Privacy**: Keep sensitive data local
+- **Scalability**: Modular capacity expansion via standard SSDs
+
+## Strategic Position (Q1 2026)
+
+### Market Opportunity
+The convergence of three trends creates unprecedented opportunity:
+1. **AI Model Growth**: Models growing faster than memory capacity
+2. **Memory Shortage**: DRAM/HBM supply constrained by datacenter demand
+3. **Edge AI Demand**: Privacy, latency, and cost driving local inference
+
+### Competitive Advantages
+1. **Technology Leadership**: First-to-market with PCIe Gen5 + AI optimization
+2. **Supply Chain Security**: Strategic partnerships ensure component availability
+3. **Ecosystem Integration**: Deep relationships across NAND makers, OEMs, and channels
+
+## Key Partnerships
+
+### NAND Suppliers
+- **Kioxia** (Primary Partner & Shareholder): Guaranteed access to cutting-edge 3D NAND
+- Micron, Samsung (Secondary sources)
+
+### OEM Customers
+- Dell, HP, ASUS, Acer, Lenovo (AI PC programs)
+- Supermicro (Workstation/Server segment)
+
+### Channel Partners
+- Newegg, Micro Center (Retail distribution)
+- Major distributors across North America, Europe, APAC
+
+## Competitive Landscape
+
+### Direct Competitors (SSD Controllers)
+- **Samsung**: Vertically integrated (own NAND + controllers), strong in enterprise
+- **Silicon Motion**: Strong in client SSDs, developing AI-focused controllers
+- **Marvell**: Enterprise focus, datacenter partnerships
+
+### Indirect Competitors (Memory Solutions)
+- **NVIDIA**: Datacenter-focused, high-cost HBM solutions (validates problem, different market)
+- **Apple**: Unified memory architecture (premium segment, validates local AI trend)
+- **AMD/Intel**: Platform-level memory innovations
+
+## Strategic Imperatives (2026)
+
+### Opportunities to Pursue
+1. **DRAM Shortage Arbitrage**: Position aiDAPTIV+ as solution to PC memory constraints
+2. **OEM Partnerships**: Deepen relationships as supply chain security becomes critical
+3. **Market Education**: Evangelize SSD-based memory offload as viable architecture
+
+### Threats to Monitor
+1. **Competitor Innovation**: Samsung/Silicon Motion developing similar technologies
+2. **Memory Price Volatility**: Rapid DRAM price drops could reduce aiDAPTIV+ appeal
+3. **Platform Shifts**: Apple-style unified memory becoming standard
+
+### Key Metrics
+- **Market Validation**: Industry acknowledgment of memory bottleneck
+- **Partner Engagement**: OEM design wins, co-marketing opportunities
+- **Competitive Positioning**: Maintain technology leadership vs. Samsung/Silicon Motion

@@ -15,6 +15,11 @@ from pathlib import Path
 # Set USE_REAL_OLLAMA=false to use canned responses
 USE_REAL_OLLAMA = os.getenv("USE_REAL_OLLAMA", "true").lower() == "true"
 
+# Development mode: Use lighter models for faster iteration on resource-constrained systems
+# Set DEV_MODE=true to use lighter models (qwen2.5:7b, llava:latest instead of heavier models)
+# Default: true (use lightest models)
+DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+
 # Ollama connection settings
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")

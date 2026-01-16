@@ -246,16 +246,16 @@ export const Dashboard = () => {
                         {isAnalysisRunning ? (
                             <button
                                 onClick={stopAnalysis}
-                                className="h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"
+                                className="h-9 px-4 rounded-md shadow-lg transition-all flex items-center gap-2 font-bold text-sm tracking-wide transform active:scale-95 duration-300 bg-red-500 hover:bg-red-600 text-white shadow-red-500/30"
                             >
-                                <div className="w-3 h-3 bg-white rounded-sm" /> STOP ANALYSIS
+                                <div className="w-2.5 h-2.5 bg-white rounded-sm" /> STOP ANALYSIS
                             </button>
                         ) : (
                             <button
                                 onClick={startAnalysis}
-                                className="h-12 px-8 rounded-xl shadow-lg transition-all flex items-center gap-3 font-bold text-base tracking-wide transform active:scale-95 duration-300 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-400/50"
+                                className="h-9 px-4 rounded-md shadow-lg transition-all flex items-center gap-2 font-bold text-sm tracking-wide transform active:scale-95 duration-300 bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/30 ring-1 ring-blue-400/50"
                             >
-                                <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1" /> START ANALYSIS
+                                <div className="w-0 h-0 border-t-[4.5px] border-t-transparent border-l-[7.5px] border-l-white border-b-[4.5px] border-b-transparent ml-1" /> START ANALYSIS
                             </button>
                         )}
                     </div>

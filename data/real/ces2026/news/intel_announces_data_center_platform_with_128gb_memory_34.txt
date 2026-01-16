@@ -1,0 +1,14 @@
+Intel Press Release - February 13, 2026
+
+Intel today unveiled its Data Center Platform platform, featuring 128GB of LPDDR5X memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 128GB LPDDR5X
+- Bandwidth: 2400GB/s
+- Target Market: Enterprise
+- Availability: Q1 2026
+
+STRATEGIC IMPLICATIONS:
+Validates memory bottleneck concerns in AI infrastructure
+
+This development validates the need for memory optimization solutions like aiDAPTIV+.

@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 # AGENTIC ANALYSIS PHASES
 # ═══════════════════════════════════════════════════════════════
 
+# Import config to check DEV_MODE
+import config as app_config
+
+# Model selection based on DEV_MODE
+_CROSS_MODAL_MODEL = "phi3:mini" if app_config.DEV_MODE else "qwen2.5:14b"
+
 ANALYSIS_PHASES = {
     "phase_1_review": {
         "name": "Load Context",
@@ -34,7 +40,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": [],
         "author": "@Orchestrator",
         "system_prompt": "You are the Orchestrator. Your role is to survey available data and plan the analysis resources. Maintain a high-level operational tone.",
-        "model": "llama3.1:8b"
+        "model": "llama3.2:3b" if app_config.DEV_MODE else "llama3.1:8b"
     },
     "phase_2_patterns": {
         "name": "Analyze Documents",
@@ -44,7 +50,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": [],
         "author": "@AI_Analyst",
         "system_prompt": "You are an Expert Analyst. Focus on identifying patterns, trends, and key insights from the documents. Be detailed and observational.",
-        "model": "qwen2.5:14b"
+        "model": _CROSS_MODAL_MODEL
     },
     "phase_3_technical": {
         "name": "Analyze Video/Images",
@@ -55,7 +61,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": [],
         "author": "@Media_Analyst",
         "system_prompt": "You are a Media Analyst. Extract key insights from video transcripts and images. Correlate visual and media content with document findings.",
-        "model": "qwen2.5:14b"
+        "model": _CROSS_MODAL_MODEL
     },
     "phase_4_social": {
         "name": "Analyze User Feedback",
@@ -65,7 +71,7 @@ ANALYSIS_PHASES = {
         "related_doc_ids": [],
         "author": "@Social_Researcher",
         "system_prompt": "You are a User Researcher. Analyze social sentiment and user discussions. Validate findings with real user feedback and pain points.",
-        "model": "llama3.1:8b"
+        "model": "llama3.2:3b" if app_config.DEV_MODE else "llama3.1:8b"
     },
     "phase_5_synthesis": {
         "name": "Generate Summary",
@@ -75,7 +81,7 @@ ANALYSIS_PHASES = {
         "tools": ["report_generator"],
         "author": "@Lead_Strategist",
         "system_prompt": "You are the Lead Strategist. Synthesize findings from all sources into a comprehensive summary with actionable recommendations.",
-        "model": "llama3.1:8b"
+        "model": "llama3.2:3b" if app_config.DEV_MODE else "llama3.1:8b"
     }
 }
 

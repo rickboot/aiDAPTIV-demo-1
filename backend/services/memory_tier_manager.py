@@ -4,6 +4,7 @@ Memory Tier Manager - Dynamic Feature Gating Based on Available Memory
 import psutil
 import logging
 from typing import Dict, List
+import config as app_config
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,8 @@ class MemoryTierManager:
     }
     
     # Model configurations per tier
-    TIER_MODELS = {
+    # Dev mode uses lighter models for faster iteration on resource-constrained systems
+    TIER_MODELS_PROD = {
         "text_only": {
             "text_analysis": "llama3.1:8b"
         },
@@ -34,6 +36,33 @@ class MemoryTierManager:
             "image_generation": "stable-diffusion-xl"
         }
     }
+    
+    # Lighter models for development (faster, less memory, still functional)
+    TIER_MODELS_DEV = {
+        "text_only": {
+            "text_analysis": "llama3.2:3b"  # 2.0 GB instead of 4.9 GB - much lighter!
+        },
+        "standard": {
+            "text_analysis": "llama3.2:3b",  # 2.0 GB instead of 4.9 GB
+            "image_analysis": "llava:latest"  # 4.7 GB instead of 8.0 GB
+        },
+        "pro": {
+            "text_analysis": "llama3.2:3b",  # 2.0 GB instead of 4.9 GB
+            "image_analysis": "llava:latest",  # 4.7 GB instead of 8.0 GB
+            "video_analysis": "llava:latest",  # 4.7 GB instead of 8.0 GB
+            "cross_modal": "phi3:mini",  # 1.7 GB instead of 9.0 GB - much lighter!
+            "image_generation": "stable-diffusion-xl"
+        }
+    }
+    
+    @property
+    def TIER_MODELS(self):
+        """Return appropriate model config based on DEV_MODE setting."""
+        if app_config.DEV_MODE:
+            logger.info("Using DEV_MODE: lighter models for faster development")
+            return self.TIER_MODELS_DEV
+        else:
+            return self.TIER_MODELS_PROD
     
     # Feature definitions (metadata for display, min_tier is now redundant but kept for structure)
     FEATURES = {
@@ -146,7 +175,9 @@ class MemoryTierManager:
         Returns:
             Dict mapping capability to model name
         """
-        return self.TIER_MODELS.get(tier, {})
+        # Access property to get correct model config (dev or prod)
+        models = self.TIER_MODELS
+        return models.get(tier, {})
     
     def get_tier_info(self, tier: str) -> Dict:
         """

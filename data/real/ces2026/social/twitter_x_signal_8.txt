@@ -1,0 +1,19 @@
+Twitter Thread - @ylecun
+
+Date: January 18, 2026
+Likes: 1122
+Retweets: 706
+Replies: 403
+
+THREAD:
+1/5 The memory bottleneck in AI is real. Claude-3 requires 80GB but most hardware only provides 40GB. We need better solutions.
+
+2/5 KV cache grows quadratically with context length. A 512k context window needs 20GB just for cache.
+
+3/5 This is why we're seeing more interest in offloading strategies - SSD, system RAM, anything to break the VRAM wall.
+
+ENGAGEMENT:
+Thread received 3574 likes, 506 retweets, and 416 replies. High engagement indicates strong community interest.
+
+ANALYSIS:
+Influencer validation of memory bottleneck. ylecun has 307963 followers. High engagement suggests broad awareness of the issue.

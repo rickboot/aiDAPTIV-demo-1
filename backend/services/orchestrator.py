@@ -22,6 +22,7 @@ from services.ollama_service import OllamaService, ANALYSIS_PHASES
 from services.memory_tier_manager import MemoryTierManager
 from services.context_manager import ContextManager
 from services.session_manager import SessionManager
+from services.video_processor import VideoProcessor
 from sgp_config.sgp_loader import SGPLoader
 import config as app_config
 import os
@@ -54,7 +55,7 @@ SCENARIOS = {
         scenario="mktg_intelligence_demo",
         tier="standard",
         duration_seconds=10,  # Fast for dev (set to 120 for demo)
-        total_documents=87,   # 2 dossier + 60 news + 20 social + 3 video + 3 images + 1 README (all local inputs included)
+        total_documents=87,   # 2 dossier + 60 news + 20 social + 3 video + 3 images + 1 README
         memory_target_gb=14.0,  # Higher target due to video transcripts + dossiers
         crash_threshold_percent=None  # Won't crash - focused intelligence scenario
     )
@@ -115,6 +116,7 @@ class SimulationOrchestrator:
         # Multi-modal services
         self.memory_tier_manager = MemoryTierManager()
         self.current_tier = self.memory_tier_manager.detect_tier(aidaptiv_enabled)
+        self.video_processor = VideoProcessor()  # For video processing (audio + frames)
             
         # Persistent state
         self.context_manager = ContextManager()
@@ -305,6 +307,8 @@ class SimulationOrchestrator:
                     yield {"type": "status", "message": "Ingesting News Feed..."}
                 elif current_doc['category'] == 'social':
                     yield {"type": "status", "message": "Monitoring Social Channels..."}
+                elif current_doc['category'] == 'video':
+                    yield {"type": "status", "message": "Processing Video: Extracting audio and frames..."}
                 elif current_doc['category'] == 'documentation' and 'transcript' in current_doc.get('name', '').lower():
                     yield {"type": "status", "message": "Processing Video Transcripts..."}
             
@@ -410,8 +414,11 @@ class SimulationOrchestrator:
         if category == 'image':
             # Pro: llava:34b, Standard: llava:13b
             return tier_models.get('image_analysis', 'llava:13b')
-        # Video transcripts are now categorized as 'documentation', handled above
-        # Real video files would use vision model, but we only have text transcripts
+        elif category == 'video':
+            # Video files use vision model for frame analysis (llava:13b)
+            # Audio transcript uses text model (llama3.1:8b) - handled separately in agent cycle
+            return tier_models.get('image_analysis', 'llava:13b')
+        # Video transcripts are categorized as 'documentation', use text model
         else:
             # Default text model for everything else
             return tier_models.get('text_analysis', 'llama3.1:8b')
@@ -512,6 +519,16 @@ CRITICAL: You MUST provide specific details, technical facts, and concrete examp
                     "author": "@Virtual_PMM"
                 }
             ]
+        elif category == 'documentation' and current_doc.get('name') == 'README.md':
+            # Handle README.md specifically - it's the strategic context document
+            steps = [
+                {
+                    "type": "plan",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')}\n\nTASK: Review this README document which contains strategic context and instructions for the analysis.\n\nSummarize:\n1. **Strategic Context:** What is the overall purpose and scope described in this README?\n2. **Key Instructions:** What specific guidance or requirements are mentioned?\n3. **Data Sources:** What data sources or categories are referenced?\n4. **Relevance:** How does this context inform the competitive intelligence analysis?\n\nOUTPUT: A clear summary of the strategic context and how it guides the analysis workflow.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Orchestrator"
+                }
+            ]
         elif category == 'image':
             steps = [
                 {
@@ -522,6 +539,68 @@ CRITICAL: You MUST provide specific details, technical facts, and concrete examp
                     "model": default_model # Use the vision model
                 }
             ]
+        elif category == 'video':
+            # Handle video files with hybrid approach: audio transcript + visual frames
+            # Process video lazily if not already processed
+            if not current_doc.get('processed', False):
+                video_path = current_doc.get('path')
+                if video_path:
+                    # Emit status events for video processing
+                    yield StatusEvent(message="Processing video file: Loading Whisper model for audio transcription...").model_dump()
+                    
+                    # Process video: extract audio transcript and key frames
+                    video_result = self.video_processor.process_video(str(video_path), num_frames=10)
+                    
+                    # Emit status events for Whisper loading
+                    if video_result.get("whisper_loaded"):
+                        yield StatusEvent(message="✅ Whisper model loaded (audio transcription ready)").model_dump()
+                    
+                    # Emit status events for processing results
+                    if video_result.get("transcript"):
+                        yield StatusEvent(message=f"✅ Audio transcribed ({len(video_result['transcript'])} characters)").model_dump()
+                    if video_result.get("frame_paths"):
+                        yield StatusEvent(message=f"✅ Extracted {len(video_result['frame_paths'])} key frames for visual analysis").model_dump()
+                    
+                    # Update document with results
+                    current_doc['transcript'] = video_result.get("transcript", "")
+                    current_doc['frame_paths'] = video_result.get("frame_paths", [])
+                    current_doc['processed'] = True
+                    
+                    # Emit memory update to show Whisper model loaded (if applicable)
+                    memory_data, _ = self.memory_monitor.calculate_memory()
+                    yield MemoryEvent(data=memory_data).model_dump()
+            
+            transcript = current_doc.get('transcript', '')
+            frame_paths = current_doc.get('frame_paths', [])
+            
+            steps = []
+            
+            # Step 1: Analyze audio transcript (if available)
+            if transcript:
+                steps.append({
+                    "type": "thought",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')} (Audio Transcript)\n\nAnalyze this video transcript and extract key intelligence:\n1. **Memory/VRAM mentions:** What memory specifications or VRAM amounts are discussed?\n2. **AI workload challenges:** What AI model sizes or memory constraints are mentioned?\n3. **Market signals:** What does this reveal about memory bottlenecks or opportunities for SSD offloading?\n4. **Key announcements:** What products, technologies, or partnerships are announced?\n\nOUTPUT: Key findings with specific numbers, model names, and memory requirements mentioned.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Media_Analyst",
+                    "model": "llama3.1:8b"  # Use text model for transcript
+                })
+            
+            # Step 2: Analyze visual frames (if available)
+            if frame_paths:
+                # Process frames with LLaVA
+                steps.append({
+                    "type": "observation",
+                    "prompt": f"DATA SOURCE: {current_doc.get('name', 'Unknown')} (Video Frames)\n\nAnalyze these key frames from the video and extract:\n1. **On-screen text/specs:** Memory amounts, model names, product specifications visible in frames\n2. **Visual elements:** Charts, graphs, product images, logos\n3. **Key moments:** Important slides, demos, or announcements captured in frames\n\nOUTPUT: Visual intelligence extracted from frames with specific details.",
+                    "system": virtual_pmm_identity,
+                    "author": "@Visual_Intel",
+                    "model": default_model,  # Use vision model (llava:13b)
+                    "frame_paths": frame_paths  # Pass frames for visual analysis
+                })
+            
+            # If no transcript or frames, skip
+            if not steps:
+                logger.warning(f"Video file {current_doc.get('name')} has no transcript or frames to analyze")
+                return
         elif category == 'social':
             # Extract Reddit metadata for context
             doc_metadata = current_doc.get('metadata', {})
@@ -733,10 +812,19 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
                 
                 logger.info(f"Running Agent Step: {step['type']} with model {step_model}")
                 
-                # Collect image paths for llava (if processing images)
+                # Collect image/video paths for llava
                 image_paths = []
                 if category == 'image' and current_doc and 'path' in current_doc:
+                    # For images, use the image path directly
                     image_paths.append(current_doc['path'])
+                elif category == 'video' and current_doc:
+                    # For videos, use extracted frame paths (not the video file itself)
+                    frame_paths = current_doc.get('frame_paths', [])
+                    if frame_paths:
+                        # Use frame paths from step config if available, otherwise from doc
+                        step_frame_paths = step.get('frame_paths', [])
+                        image_paths = step_frame_paths if step_frame_paths else frame_paths
+                        logger.info(f"Using {len(image_paths)} video frames for LLaVA analysis")
                 
                 # Append metric reminder to the user prompt to ensure compliance
                 step_prompt = step['prompt'] + "\n\nIMPORTANT: Embed tags naturally within your analysis: [TOPIC: name], [PATTERN: description], [INSIGHT: conclusion], [FLAG: issue]. Write clear, analytical prose that demonstrates deep understanding of the context."
@@ -776,13 +864,13 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
                      yield PerformanceEvent(data=PerformanceData(**metrics)).model_dump()
                      
                      # Extract and yield real metrics from thought text
-                     # Primary Method: Regex
+                     # Primary Method: Regex (fast, works when LLM follows instructions)
                      metric_events = self._extract_metrics(thought_text)
                      
                      # Fallback Method: Two-Pass LLM Extraction (if regex failed)
-                     # Essential for Vision Models which ignore formatting instructions
-                     if not metric_events and (step.get('model', '').startswith('llava') or "observation" in step['type']):
-                         logger.info("Regex found no metrics. Triggering Two-Pass Extraction with Llama 3...")
+                     # Use when LLM doesn't follow tag format (common with vision models or when instructions are ignored)
+                     if not metric_events:
+                         logger.info("Regex found no metrics. Triggering Two-Pass Extraction to parse analysis text...")
                          metric_events = await self._analyze_text_for_metrics(thought_text)
                      
                      for me in metric_events:
@@ -814,29 +902,58 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
     
     
     def _extract_metrics(self, text: str) -> list[MetricEvent]:
-        """Extract metrics from tagged LLM output using regex."""
+        """Extract metrics from tagged LLM output using flexible regex patterns."""
         import re
         events = []
         
-        # Regex patterns for tags (Case Insensitive)
-        flags = re.IGNORECASE
+        # Improved regex patterns - more flexible to handle variations
+        # Handles: [TOPIC: ...], [Topic: ...], [TOPIC:...], Topic: ... (without brackets)
+        flags = re.IGNORECASE | re.MULTILINE
         patterns = {
-            "key_topics": re.compile(r"\[TOPIC:\s*([^\]]+)\]", flags),
-            "patterns_detected": re.compile(r"\[PATTERN:\s*([^\]]+)\]", flags),
-            "insights_generated": re.compile(r"\[INSIGHT:\s*([^\]]+)\]", flags),
-            "critical_flags": re.compile(r"\[FLAG:\s*([^\]]+)\]", flags)
+            "key_topics": [
+                re.compile(r"\[TOPIC:\s*([^\]]+)\]", flags),  # Standard format
+                re.compile(r"\[Topic:\s*([^\]]+)\]", flags),  # Mixed case
+                re.compile(r"Topic:\s*([^\n\[\]]+)", flags),   # Without brackets
+            ],
+            "patterns_detected": [
+                re.compile(r"\[PATTERN:\s*([^\]]+)\]", flags),
+                re.compile(r"\[Pattern:\s*([^\]]+)\]", flags),
+                re.compile(r"Pattern:\s*([^\n\[\]]+)", flags),
+            ],
+            "insights_generated": [
+                re.compile(r"\[INSIGHT:\s*([^\]]+)\]", flags),
+                re.compile(r"\[Insight:\s*([^\]]+)\]", flags),
+                re.compile(r"Insight:\s*([^\n\[\]]+)", flags),
+            ],
+            "critical_flags": [
+                re.compile(r"\[FLAG:\s*([^\]]+)\]", flags),
+                re.compile(r"\[Flag:\s*([^\]]+)\]", flags),
+                re.compile(r"Flag:\s*([^\n\[\]]+)", flags),
+            ]
         }
         
         found_any = False
-        for metric_name, pattern in patterns.items():
-            matches = pattern.findall(text)
-            if matches:
-                 logger.info(f"FOUND METRICS ({metric_name}): {matches}")
-                 found_any = True
+        for metric_name, pattern_list in patterns.items():
+            all_matches = []
+            for pattern in pattern_list:
+                matches = pattern.findall(text)
+                if matches:
+                    all_matches.extend(matches)
+                    found_any = True
             
-            for match in matches:
-                value = match.strip()
-                
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_matches = []
+            for match in all_matches:
+                normalized = match.strip()
+                if normalized and normalized.lower() not in seen:
+                    seen.add(normalized.lower())
+                    unique_matches.append(normalized)
+            
+            if unique_matches:
+                logger.info(f"FOUND METRICS ({metric_name}): {unique_matches}")
+            
+            for value in unique_matches:
                 # Determine the correct unique set based on metric_name
                 usage_set = None
                 if metric_name == "key_topics":
@@ -849,20 +966,23 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
                     usage_set = self.unique_flags
                 
                 if usage_set is not None:
-                    if value not in usage_set:
-                        usage_set.add(value)
+                    # Use normalized (lowercase) for comparison to avoid duplicates
+                    normalized_value = value.lower()
+                    if normalized_value not in usage_set:
+                        usage_set.add(normalized_value)
                         self.metrics[metric_name] += 1
                         events.append(MetricEvent(data=MetricData(name=metric_name, value=self.metrics[metric_name])))
         
         if not found_any:
             # Debug log to see why we missed it
-            logger.debug(f"NO METRICS FOUND IN: {text[:50]}...")
+            logger.debug(f"NO METRICS FOUND IN: {text[:100]}...")
             
         return events
     
     def _resolve_dataset_path(self, scenario_slug: str, category: Optional[str] = None) -> Path:
         """
         Resolve dataset path for a given scenario and category.
+        Checks both realstatic and real directories.
         
         Args:
             scenario_slug: Scenario identifier (e.g., "mktg_intelligence_demo")
@@ -871,7 +991,7 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
         Returns:
             Path to the dataset directory
         """
-        base_path = Path(__file__).parent.parent.parent / "data" / "realstatic"
+        project_root = Path(__file__).parent.parent.parent
         
         # Directory name mapping: map scenario slugs to actual directory names on disk
         # This allows scenario-agnostic code while supporting existing directory structures
@@ -882,9 +1002,23 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
         }
         directory_name = directory_mapping.get(scenario_slug, scenario_slug)
         
-        if category:
-            return base_path / directory_name / category
-        return base_path / directory_name
+        # Try realstatic first (primary location), then real (for additional files)
+        base_paths = [
+            project_root / "data" / "realstatic",
+            project_root / "data" / "real"
+        ]
+        
+        for base_path in base_paths:
+            if category:
+                path = base_path / directory_name / category
+            else:
+                path = base_path / directory_name
+            
+            if path.exists():
+                return path
+        
+        # Return the first path even if it doesn't exist (for creation)
+        return base_paths[0] / directory_name / category if category else base_paths[0] / directory_name
     
     def _get_document_list(self) -> list[dict]:
         """Get list of documents for this scenario."""
@@ -895,12 +1029,9 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
         # Use scenario-agnostic path resolution
         scenario_dir = self._resolve_dataset_path(scenario)
         
-        # 1. README (Core Instructions) - Load FIRST
-        readme = scenario_dir / "README.md"
-        if readme.exists():
-            content = readme.read_text(encoding='utf-8')
-            size_kb = readme.stat().st_size / 1024
-            docs.append({"name": readme.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
+        # 1. README - SKIPPED (not in processing list)
+        # readme = scenario_dir / "README.md"
+        # (README.md removed from processing list)
         
         # 2. Dossier files (Strategic Context) - Load SECOND (core context before live data)
         dossier_dir = self._resolve_dataset_path(scenario, "dossier")
@@ -952,60 +1083,65 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
                     size_kb = file.stat().st_size / 1024
                     docs.append({"name": file.name, "category": "social", "size_kb": round(size_kb, 1), "content": content})
         
-        # 6. Image files - Load ALL images from all subdirectories
+        # 6. Image files - Load only Intel image
         images_dir = self._resolve_dataset_path(scenario, "images")
         if images_dir.exists():
-            # Load from all subdirectories
-            for subdir in ["infographics", "competitor_screenshots", "social_media"]:
-                subdir_path = images_dir / subdir
-                if subdir_path.exists():
-                    # Support multiple image formats
-                    for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
-                        for file in sorted(subdir_path.glob(ext)):
-                            size_kb = file.stat().st_size / 1024
-                            docs.append({
-                                "name": file.name,
-                                "category": "image",
-                                "size_kb": round(size_kb, 1),
-                                "path": str(file),
-                                "content": f"[Image: {file.name}]"
-                            })
-            # Also check root images directory for any loose images
-            for ext in ["*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG", "*.JPEG"]:
-                for file in sorted(images_dir.glob(ext)):
-                    size_kb = file.stat().st_size / 1024
-                    docs.append({
-                        "name": file.name,
-                        "category": "image",
-                        "size_kb": round(size_kb, 1),
-                        "path": str(file),
-                        "content": f"[Image: {file.name}]"
-                    })
+            # Only load Intel Panther Lake image
+            intel_image_path = images_dir / "infographics" / "intel_panther_lake_1767950563347.png"
+            if intel_image_path.exists():
+                size_kb = intel_image_path.stat().st_size / 1024
+                docs.append({
+                    "name": intel_image_path.name,
+                    "category": "image",
+                    "size_kb": round(size_kb, 1),
+                    "path": str(intel_image_path),
+                    "content": f"[Image: {intel_image_path.name}]"
+                })
         
-        # 7. Video transcripts (categorized as documentation since they're text file transcripts)
+        # 7. Video files - Add to list for lazy processing (process when first encountered)
         video_dir = self._resolve_dataset_path(scenario, "video")
         if video_dir.exists():
-            for file in sorted(video_dir.glob("*.txt")):
-                content = file.read_text(encoding='utf-8')
-                size_kb = file.stat().st_size / 1024
-                docs.append({"name": file.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
+            # Add video files to list (will be processed lazily during analysis)
+            video_extensions = ["*.mp4", "*.mov", "*.avi", "*.mkv", "*.MP4", "*.MOV", "*.AVI", "*.MKV"]
+            for ext in video_extensions:
+                for video_file in sorted(video_dir.glob(ext)):
+                    size_kb = video_file.stat().st_size / 1024
+                    docs.append({
+                        "name": video_file.name,
+                        "category": "video",
+                        "size_kb": round(size_kb, 1),
+                        "path": str(video_file),
+                        "transcript": None,  # Will be populated during processing
+                        "frame_paths": [],  # Will be populated during processing
+                        "processed": False,  # Flag to track if already processed
+                        "content": f"[Video: {video_file.name}]"
+                    })
+                    logger.info(f"Added video file for processing: {video_file.name}")
+            
+            # Also load NVIDIA transcript if it exists (as fallback/documentation)
+            nvidia_transcript = video_dir / "nvidia_CES_2026_keynote_transcript.txt"
+            if nvidia_transcript.exists():
+                content = nvidia_transcript.read_text(encoding='utf-8')
+                size_kb = nvidia_transcript.stat().st_size / 1024
+                docs.append({"name": nvidia_transcript.name, "category": "documentation", "size_kb": round(size_kb, 1), "content": content})
+                logger.info(f"Loaded video transcript: {nvidia_transcript.name}")
         
         # Sort documents by priority for demo:
-        # 1. README (core instructions)
-        # 2. Dossier (core context/strategic framework)
-        # 3. Live Reddit posts (after core context for better analysis)
-        # 4. Video transcripts (user priority)
-        # 5. Images (multi-modal demo)
+        # 1. Dossier (core context/strategic framework)
+        # 2. Live Reddit posts (after core context for better analysis)
+        # 3. Video files (actual video files)
+        # 4. Video transcripts (NVIDIA transcript)
+        # 5. Images (Intel image)
         # 6. Everything else
         def get_priority(doc):
-            # README gets highest priority
-            if doc.get('category') == 'documentation' and doc.get('name') == 'README.md':
+            # Dossier gets highest priority (core context)
+            if doc.get('category') == 'dossier':
                 return 0
-            # Dossier gets second priority (core context)
-            elif doc.get('category') == 'dossier':
-                return 1
-            # Live Reddit posts get third priority (after core context)
+            # Live Reddit posts get second priority (after core context)
             elif doc.get('source') == 'reddit':
+                return 1
+            # Video files get third priority
+            elif doc.get('category') == 'video':
                 return 2
             # Video transcripts get fourth priority
             elif doc.get('category') == 'documentation' and 'transcript' in doc.get('name', '').lower():
@@ -1050,21 +1186,30 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
     async def _analyze_text_for_metrics(self, text: str) -> list[MetricEvent]:
         """
         Two-Pass Extraction: Ask a small LLM to extract metrics from the analysis text.
-        Robust fallback for vision models.
+        Robust fallback when regex fails (LLM didn't follow tag format).
         """
         if not self.use_ollama or not self.ollama_service:
             return []
+        
+        # Truncate text if too long to avoid token limits
+        max_text_length = 2000
+        truncated_text = text[:max_text_length] + ("..." if len(text) > max_text_length else "")
             
         extraction_prompt = (
-            f"Analyze the following observation and extract key entities and insights.\n"
-            f"TEXT: \"{text}\"\n\n"
-            f"INSTRUCTIONS:\n"
-            f"Output ONLY tags in this format:\n"
-            f"- [TOPIC: <Entity Name>]\n"
-            f"- [PATTERN: <Trend>]\n"
-            f"- [INSIGHT: <Conclusion>]\n"
-            f"- [FLAG: <Warning>]\n"
-            f"If nothing relevant is found, output: [INSIGHT: Routine analysis]"
+            f"Extract key information from this analysis text and output ONLY tags in the exact format below.\n\n"
+            f"ANALYSIS TEXT:\n{truncated_text}\n\n"
+            f"REQUIRED OUTPUT FORMAT (output each tag on a separate line):\n"
+            f"[TOPIC: <company, product, or technology name>]\n"
+            f"[PATTERN: <trend or recurring theme>]\n"
+            f"[INSIGHT: <actionable conclusion or finding>]\n"
+            f"[FLAG: <critical issue, risk, or warning>]\n\n"
+            f"RULES:\n"
+            f"- Extract 1-3 TOPIC tags for key entities mentioned\n"
+            f"- Extract 1-2 PATTERN tags for trends or patterns observed\n"
+            f"- Extract 1-3 INSIGHT tags for important conclusions\n"
+            f"- Extract 0-1 FLAG tags only if there's a critical issue\n"
+            f"- If the text has no relevant information, output: [INSIGHT: Routine analysis]\n"
+            f"- Output ONLY the tags, no other text"
         )
         
         # Use fast model for extraction
@@ -1073,14 +1218,22 @@ IMPORTANT: Use double newlines (blank line) between each section. Do NOT write e
             response_text = ""
             async for chunk, _ in self.ollama_service.generate_step(
                 context="",
-                system_prompt="You are a data extraction engine. Output strictly formatted tags.",
+                system_prompt=(
+                    "You are a data extraction engine. Your job is to extract structured information "
+                    "from analysis text and output it in a strict tag format. Output ONLY the tags, "
+                    "one per line, with no additional commentary or explanation."
+                ),
                 user_prompt=extraction_prompt,
-                model="llama3.1:8b" # Always use the text model for extraction
+                model="llama3.1:8b"  # Always use the text model for extraction
             ):
                 response_text += chunk
             
-            logger.info(f"Two-Pass Extraction Result: {response_text}")
-            return self._extract_metrics(response_text)
+            logger.info(f"Two-Pass Extraction Result: {response_text[:200]}...")
+            # Extract metrics from the LLM's response using regex
+            extracted = self._extract_metrics(response_text)
+            if extracted:
+                logger.info(f"Two-Pass Extraction successfully found {len(extracted)} metrics")
+            return extracted
             
         except Exception as e:
             logger.error(f"Two-Pass Extraction failed: {e}")

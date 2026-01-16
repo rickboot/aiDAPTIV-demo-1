@@ -1,0 +1,14 @@
+NVIDIA Press Release - January 28, 2026
+
+NVIDIA today unveiled its Workstation GPU platform, featuring 32GB of LPDDR5X memory. The announcement comes as the industry grapples with increasing memory demands from AI workloads.
+
+KEY SPECIFICATIONS:
+- Memory: 32GB LPDDR5X
+- Bandwidth: 3200GB/s
+- Target Market: Data Centers
+- Availability: Q1 2026
+
+STRATEGIC IMPLICATIONS:
+Validates memory bottleneck concerns in AI infrastructure
+
+This development validates the need for memory optimization solutions like aiDAPTIV+.

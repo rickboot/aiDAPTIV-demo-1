@@ -5,7 +5,7 @@ FastAPI application entry point for aiDAPTIV+ demo backend.
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api import websocket, scenarios
+from api import websocket, routes
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Register routers
-app.include_router(scenarios.router)
+app.include_router(routes.router)
 app.include_router(websocket.router)
 
 @app.on_event("startup")
